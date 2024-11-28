@@ -33,7 +33,7 @@ const NavbarVertical = (props) => {
               href="/strategy-drawdowns"
               className="nav-link"
             >
-              Strategy Drawdowns
+              Indices Drawdowns
             </Link>
           </Card>
           
@@ -42,7 +42,7 @@ const NavbarVertical = (props) => {
               href="/strategy-returns"
               className="nav-link"
             >
-              Strategy Returns
+              Indices Returns
             </Link>
           </Card>
         </Accordion>
