@@ -1,0 +1,84 @@
+/* IndexTable.css */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+.elegant-title {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    font-weight: 600;
+}
+
+.playfair-display {
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-style: normal;
+    font-size: 2rem !important;
+    color: #d1a47b !important;
+  }
+  
+
+/* Enhanced table header */
+.table-header th {
+    background-color: #f8f9fa;
+    color: #343a40;
+    vertical-align: middle;
+    font-size: 1rem;
+    position: relative;
+}
+
+/* Sort icon styling */
+.sort-icon {
+    vertical-align: middle;
+    font-size: 0.8rem;
+    margin-left: 5px;
+    color: #6c757d;
+}
+
+/* Drawdown percentage in red */
+.drawdown {
+    color: #dc3545 !important; /* Bootstrap's danger color */
+    font-weight:800;
+    }
+
+/* 'True' value styling in red */
+.true-value {
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* Hover effect for table rows */
+.table-row:hover {
+    background-color: #f1f1f1;
+}
+
+/* Loading spinner centering */
+.loading-spinner {
+    height: 100vh;
+}
+
+/* Alternate row coloring for better readability */
+.elegant-table tbody tr:nth-of-type(odd) {
+    background-color: #ffffff;
+}
+
+.elegant-table tbody tr:nth-of-type(even) {
+    background-color: #f9f9f9;
+}
+
+/* Table cell alignment */
+.elegant-table td, .elegant-table th {
+    vertical-align: middle;
+    text-align: center;
+}
+
+/* Tooltip customization (optional) */
+.tooltip-inner {
+    background-color: #343a40;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.bg-true{
+    background-color: #dc354633 !important;
+    color: #dc3546 !important;
+}

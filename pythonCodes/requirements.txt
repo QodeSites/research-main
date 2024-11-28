@@ -1,0 +1,7 @@
+kiteconnect
+selenium
+webdriver-manager
+pyotp
+pandas
+urllib3
+requests
