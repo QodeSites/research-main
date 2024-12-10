@@ -26,16 +26,16 @@ const IndexTable = () => {
 
     // New state for last fetch time
     const [lastFetchTime, setLastFetchTime] = useState(null);
- 
-    // Define the indices for each category
+
+    // Define the indices for each category in the desired order
     const broadBasedIndices = [
         'NSE:NIFTY 50',
-        'NSE:NIFTY NEXT 50',
-        'NSE:NIFTY 100',
         'NSE:NIFTY 500',
+        'NSE:NIFTY NEXT 50',
+        // 'NSE:NIFTY 100',
         'NSE:NIFTY MIDCAP 100',
         'NSE:NIFTY SMLCAP 250',
-        'NSE:NIFTY MICROCAP250'
+        // 'NSE:NIFTY MICROCAP250'
     ];
 
     const sectoralIndices = [
@@ -61,20 +61,25 @@ const IndexTable = () => {
         'NSE:NIFTY PSE'
     ];
 
-    // Function to segregate indices into Broad Based and Sectoral
+    // Function to segregate and order indices into Broad Based and Sectoral
     const segregateIndices = (rawData) => {
-        const broadBased = rawData.filter(item => broadBasedIndices.includes(item.indices));
-        const sectoral = rawData.filter(item => sectoralIndices.includes(item.indices));
+        const dataMap = new Map(rawData.map(item => [item.indices, item]));
+
+        const broadBased = broadBasedIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
+
+        const sectoral = sectoralIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
 
         return { broadBased, sectoral };
     };
 
-
-
     const fetchIndices = async () => {
         setIsLoading(true);
         setError(null);
-    
+
         try {
             // Fetch the most recent data (which is today's data)
             const response = await fetch(`${window.location.origin}/api/fetchIndex`, {
@@ -82,38 +87,35 @@ const IndexTable = () => {
                 headers: { 'Content-Type': 'application/json' },
             });
             const result = await response.json();
-    
-            console.log('API Response:', result); // Debugging
-    
+
+
             if (Array.isArray(result.data)) {
-                const latestDate = result.data.length > 0 
-                ? formatDate(result.data[0].date || result.date || new Date())
-                : formatDate(new Date());
+                const latestDate = result.data.length > 0
+                    ? formatDate(result.data[0].date || result.date || new Date())
+                    : formatDate(new Date());
 
                 setDate(latestDate);
-                    
-                // Filter the data to get only entries for "today"
+
+                // Filter and sanitize the data
                 const filteredData = result.data.map(item => ({
-                        ...item,
-                        indices: item.indices || 'N/A', // Ensure indices is a string
-                        currentDD: isNaN(item.currentDD) ? 0 : item.currentDD, // Ensure currentDD is a valid number
-                        nav: isNaN(item.nav) ? 0 : item.nav,
-                        peak: isNaN(item.peak) ? 0 : item.peak,
-                        dd10: Boolean(item.dd10),
-                        dd15: Boolean(item.dd15),
-                        dd20: Boolean(item.dd20),
-                        dd10_value: isNaN(item.dd10_value) ? 0 : item.dd10_value,
-                        dd15_value: isNaN(item.dd15_value) ? 0 : item.dd15_value,
-                        dd20_value: isNaN(item.dd20_value) ? 0 : item.dd20_value,
-                        direction: item.direction || 'NONE', // Ensure direction has a default value
-                    }));
-    
+                    ...item,
+                    indices: item.indices || 'N/A', // Ensure indices is a string
+                    currentDD: isNaN(item.currentDD) ? 0 : item.currentDD, // Ensure currentDD is a valid number
+                    nav: isNaN(item.nav) ? 0 : item.nav,
+                    peak: isNaN(item.peak) ? 0 : item.peak,
+                    dd10: Boolean(item.dd10),
+                    dd15: Boolean(item.dd15),
+                    dd20: Boolean(item.dd20),
+                    dd10_value: isNaN(item.dd10_value) ? 0 : item.dd10_value,
+                    dd15_value: isNaN(item.dd15_value) ? 0 : item.dd15_value,
+                    dd20_value: isNaN(item.dd20_value) ? 0 : item.dd20_value,
+                    direction: item.direction || 'NONE', // Ensure direction has a default value
+                }));
+
                 console.log('Filtered and Mapped Data:', filteredData); // Debugging
-    
+
                 setData(filteredData);
                 setLastFetchTime(new Date()); // Update last fetch time
-                
-                // Set the displayed date to today's date
             } else {
                 console.error('Invalid data structure or no data returned');
                 setError('Invalid data structure or no data returned');
@@ -125,8 +127,7 @@ const IndexTable = () => {
             setIsLoading(false);
         }
     };
-    
-    
+
     // Sorting function
     const sortedData = useMemo(() => {
         let sortableData = [...data];
@@ -163,7 +164,6 @@ const IndexTable = () => {
         console.log("Segregated Data: ", result); // Debugging the segregated data
         return result;
     }, [sortedData]);
-    
 
     // Sorting request handler
     const requestSort = (key) => {
@@ -187,40 +187,45 @@ const IndexTable = () => {
     }, []);
 
 
-    // Function to render table headers
+
+    // Function to render table headers (including serial number column)
     const renderTableHeader = () => (
         <tr>
-            <th style={{ cursor: 'pointer' }}>
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')}>
+                S.No {renderSortIcon('serialNo')}
+            </th>
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('indices')}>
                 Indices {renderSortIcon('indices')}
             </th>
-            <th style={{ cursor: 'pointer' }}>
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nav')}>
                 <div className="nav-header">
                     Current NAV {renderSortIcon('nav')}
-                    {date && <div className="nav-date">({date})</div>}
+                    {date && <div className="nav-date"><strong>({date})</strong></div>}
                 </div>
             </th>
             <th onClick={() => requestSort('currentDD')} style={{ cursor: 'pointer' }}>
                 Current DD {renderSortIcon('currentDD')}
             </th>
-            <th style={{ cursor: 'pointer' }}>
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('peak')}>
                 Peak {renderSortIcon('peak')}
             </th>
-            <th style={{ cursor: 'pointer' }}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}> 10% </span>DD {renderSortIcon('dd10')}
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd10')}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon('dd10')}
             </th>
-            <th style={{ cursor: 'pointer' }}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}> 15% </span>DD {renderSortIcon('dd15')}
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd15')}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon('dd15')}
             </th>
-            <th style={{ cursor: 'pointer' }}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}> 20% </span>DD {renderSortIcon('dd20')}
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd20')}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon('dd20')}
             </th>
         </tr>
     );
 
-    // Function to render table rows
+    // Function to render table rows (including serial number column)
     const renderTableRows = (items) => (
         items.map((item, index) => (
             <tr key={index} className="table-row">
+                <td>{index + 1}</td> {/* Serial Number */}
                 <td>
                     {item.indices} &nbsp;
                     {item.direction === 'UP' ? (
@@ -256,8 +261,8 @@ const IndexTable = () => {
                     ) : (
                         <span
                             style={{
-                                fontWeight: 'bold', // Always bold if dd10 is not "Done"
-                                color: 'rgba(0, 0, 0, 1)', // Solid color for the first value
+                                fontWeight: 'bold',
+                                color: 'rgba(0, 0, 0, 1)',
                             }}
                         >
                             {isNaN(item.dd10_value) ? 'N/A' : formatCurrency(item.dd10_value)}
@@ -286,10 +291,10 @@ const IndexTable = () => {
                             style={{
                                 fontWeight: item.dd10 ? 'bold' : item.dd20 ? 'lighter' : 'normal',
                                 color: item.dd10
-                                    ? 'rgba(0, 0, 0, 0.8)' // Darker for closer proximity
+                                    ? 'rgba(0, 0, 0, 0.8)'
                                     : item.dd20
-                                        ? 'rgba(0, 0, 0, 0.6)' // Lighter for further proximity
-                                        : 'rgba(0, 0, 0, 1)', // Default color
+                                        ? 'rgba(0, 0, 0, 0.6)'
+                                        : 'rgba(0, 0, 0, 1)',
                             }}
                         >
                             {isNaN(item.dd15_value) ? 'N/A' : formatCurrency(item.dd15_value)}
@@ -318,8 +323,8 @@ const IndexTable = () => {
                             style={{
                                 fontWeight: item.dd15 ? 'bold' : 'normal',
                                 color: item.dd15
-                                    ? 'rgba(0, 0, 0, 0.8)' // Darker for closer proximity
-                                    : 'rgba(0, 0, 0, 0.6)', // Lighter for further proximity
+                                    ? 'rgba(0, 0, 0, 0.8)'
+                                    : 'rgba(0, 0, 0, 0.6)',
                             }}
                         >
                             {isNaN(item.dd20_value) ? 'N/A' : formatCurrency(item.dd20_value)}
@@ -329,6 +334,7 @@ const IndexTable = () => {
             </tr>
         ))
     );
+
 
     const exportToExcel = () => {
         // Create a new workbook
@@ -371,7 +377,7 @@ const IndexTable = () => {
 
     if (isLoading) {
         return (
-            <div className="d-flex justify-content-center align-items-center loading-spinner">
+            <div className="d-flex justify-content-center align-items-center loading-spinner" style={{ height: '100vh' }}>
                 <Spinner animation="border" role="status" variant="primary">
                     <span className="sr-only">Loading...</span>
                 </Spinner>
@@ -386,7 +392,7 @@ const IndexTable = () => {
             {/* Display last fetch time */}
             {lastFetchTime && (
                 <p className="text-muted">
-                    Last updated on {lastFetchTime.toLocaleString()}
+                    Last Fetch: {formatDate(lastFetchTime).toLocaleString()}
                 </p>
             )}
 
@@ -395,26 +401,21 @@ const IndexTable = () => {
             {!isLoading && (
                 <>
                     <div className="d-flex gap-2 justify-content-end mb-3 align-items-center">
-                        {/* Optional: Display last fetch time near buttons */}
-                        {/* 
-                        {lastFetchTime && (
-                            <p className="text-muted me-auto mb-0">
-                                Last updated on {lastFetchTime.toLocaleString()}
-                            </p>
-                        )}
-                        */}
                         <Button variant="success" onClick={exportToExcel}>
                             Export to Excel
                         </Button>
-                        {/* <Button variant="primary" onClick={fetchAndUpdateIndices}>
-                            Fetch Updated Data
-                        </Button> */}
                     </div>
                     {/* Broad Based Indices */}
                     {segregatedData.broadBased.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Broad Based Indices</h3>
-                            <Table bordered responsive className="elegant-table">
+                            {/* Data As Of label for Broad Based Indices */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <Table bordered striped responsive className="elegant-table">
                                 <thead className="table-header">
                                     {renderTableHeader()}
                                 </thead>
@@ -429,7 +430,13 @@ const IndexTable = () => {
                     {segregatedData.sectoral.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Sectoral Indices</h3>
-                            <Table bordered responsive className="elegant-table">
+                            {/* Data As Of label for Sectoral Indices */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <Table bordered striped responsive className="elegant-table">
                                 <thead className="table-header">
                                     {renderTableHeader()}
                                 </thead>

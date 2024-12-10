@@ -4,10 +4,10 @@ import Link from "next/link";
 import {
   Accordion,
   Card,
-  ListGroup,
-  Badge,
-  Image,
 } from "react-bootstrap";
+
+// import react feather icons
+import { BarChart, TrendingUp } from "react-feather";
 
 // import simple bar scrolling used for notification item scrolling
 import SimpleBar from "simplebar-react";
@@ -18,33 +18,33 @@ const NavbarVertical = (props) => {
     <Fragment>
       <SimpleBar style={{ maxHeight: "100vh" }}>
         <div className="nav-scroller">
-          <Link href="/" className="navbar-brand text-3xl  playfair-display">
+          <Link href="/" className="navbar-brand text-3xl playfair-display">
             Qode
           </Link>
         </div>
+
         {/* Dashboard Menu */}
-        <Accordion
-          defaultActiveKey="0"
-          as="ul"
-          className="navbar-nav flex-column"
-        >
+        <Accordion defaultActiveKey="0" as="ul" className="navbar-nav flex-column">
           <Card bsPrefix="nav-item">
-            <Link
-              href="/strategy-drawdowns"
-              className="nav-link"
-            >
+            <Link href="/strategy-drawdowns" className="nav-link">
+              <BarChart className="feather-icon" size={18} /> &nbsp;
               Indices Drawdowns
             </Link>
           </Card>
           
           <Card bsPrefix="nav-item">
-            <Link
-              href="/strategy-returns"
-              className="nav-link"
-            >
+            <Link href="/strategy-returns" className="nav-link">
+               <TrendingUp className="feather-icon" size={18} />&nbsp;
               Indices Returns
             </Link>
           </Card>
+
+          {/* <Card bsPrefix="nav-item">
+            <Link href="/strategy-returns" className="nav-link">
+               <TrendingUp className="feather-icon" size={18} />&nbsp;
+              Trendlyne
+            </Link>
+          </Card> */}
         </Accordion>
         {/* end of Dashboard Menu */}
       </SimpleBar>

@@ -68,7 +68,7 @@
 /* Table cell alignment */
 .elegant-table td, .elegant-table th {
     vertical-align: middle;
-    text-align: center;
+    text-align: left;
 }
 
 /* Tooltip customization (optional) */

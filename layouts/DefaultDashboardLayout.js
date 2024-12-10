@@ -13,7 +13,7 @@ const DefaultDashboardLayout = (props) => {
 	};	
 	return (		
 		<div id="db-wrapper" className={`${showMenu ? '' : 'toggled'}`}>
-			<div className="navbar-vertical navbar">
+			<div className="navbar-vertical navbar ">
 				<NavbarVertical
 					showMenu={showMenu}
 					onClick={(value) => setShowMenu(value)}
