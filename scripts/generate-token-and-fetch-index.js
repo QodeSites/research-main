@@ -71,7 +71,7 @@ async function fetchIndexData() {
 }
 
 // Schedule the task to run every 24 hours (midnight)
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 0 * * *', async () => {
   console.log('Running scheduled task...');
 
   const tokenGenerated = await generateToken(); // Generate token

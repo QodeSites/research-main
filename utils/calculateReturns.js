@@ -6,6 +6,15 @@ export function calculateReturns(data, period) {
 
     // Determine the comparison value based on the period
     switch (period) {
+        case '1D':
+            comparisonValue = data[data.length - 2]?.nav;  // 1 day ago
+            break;
+        case '2D':
+            comparisonValue = data[data.length - 3]?.nav;  // 2 days ago
+            break;
+        case '3D':
+            comparisonValue = data[data.length - 4]?.nav;  // 3 days ago
+            break;
         case '10D':
             comparisonValue = data[data.length - 10]?.nav;  // 10 days ago
             break;
@@ -22,7 +31,7 @@ export function calculateReturns(data, period) {
             comparisonValue = data[data.length - 180]?.nav; // 180 days ago
             break;
         case '9M':
-            comparisonValue = data[data.length - 270]?.nav; // 180 days ago
+            comparisonValue = data[data.length - 270]?.nav; // 270 days ago
             break;
         case '1Y':
             comparisonValue = data[data.length - 365]?.nav; // 365 days ago

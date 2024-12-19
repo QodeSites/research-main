@@ -29,35 +29,35 @@ const IndicesPage = () => {
 
     // Define the indices for each category in the desired order
     const broadBasedIndices = [
-        'NSE:NIFTY 50',
-        'NSE:NIFTY 500',
-        'NSE:NIFTY NEXT 50',
-        'NSE:NIFTY MIDCAP 100',
-        'NSE:NIFTY SMLCAP 250',
-        'NSE:NIFTY MICROCAP250'
+        'NIFTY 50',
+        'NIFTY 500',
+        'NIFTY NEXT 50',
+        'NIFTY MIDCAP 100',
+        'NIFTY SMLCAP 250',
+        'NIFTY MICROCAP250'
     ];
 
     const sectoralIndices = [
-        'NSE:NIFTY BANK',
-        'NSE:NIFTY AUTO',
-        'NSE:NIFTY FINANCIAL SVC',
-        'NSE:NIFTY FMCG',
-        'NSE:NIFTY IT',
-        'NSE:NIFTY MEDIA',
-        'NSE:NIFTY METAL',
-        'NSE:NIFTY PHARMA',
-        'NSE:NIFTY PSU BANK',
-        'NSE:NIFTY PVT BANK',
-        'NSE:NIFTY REALTY',
-        'NSE:NIFTY HEALTHCARE',
-        'NSE:NIFTY CONSR DURBL',
-        'NSE:NIFTY NIFTY OIL AND GAS',
-        'NSE:NIFTY COMMODITIES',
-        'NSE:NIFTY CONSUMPTION',
-        'NSE:NIFTY CPSE',
-        'NSE:NIFTY ENERGY',
-        'NSE:NIFTY INFRA',
-        'NSE:NIFTY PSE'
+        'NIFTY BANK',
+        'NIFTY AUTO',
+        'NIFTY FINANCIAL SVC',
+        'NIFTY FMCG',
+        'NIFTY IT',
+        'NIFTY MEDIA',
+        'NIFTY METAL',
+        'NIFTY PHARMA',
+        'NIFTY PSU BANK',
+        'NIFTY PVT BANK',
+        'NIFTY REALTY',
+        'NIFTY HEALTHCARE',
+        'NIFTY CONSR DURBL',
+        'NIFTY NIFTY OIL AND GAS',
+        'NIFTY COMMODITIES',
+        'NIFTY CONSUMPTION',
+        'NIFTY CPSE',
+        'NIFTY ENERGY',
+        'NIFTY INFRA',
+        'NIFTY PSE'
     ];
 
     // Segregate indices into Broad Based and Sectoral maintaining the specified order
@@ -250,16 +250,19 @@ const IndicesPage = () => {
                     </p>
                 )}
                 {/* Custom Date Range Display */}
-                {startDate && endDate && (
+                {/* {startDate && endDate && (
                     <p className="text-dark">
                         Custom Period: {formatDate(startDate)} to {formatDate(endDate)}
                     </p>
-                )}
+                )} */}
                 <Table striped bordered hover responsive>
                     <thead>
                         <tr>
                             {renderSortHeader('Serial Number', 'S.No')}
                             {renderSortHeader('Index', 'Index')}
+                            {renderSortHeader('1D Return', '1D Return')}
+                            {renderSortHeader('2D Return', '2D Return')}
+                            {renderSortHeader('3D Return', '3D Return')}
                             {renderSortHeader('10D Return', '10D Return')}
                             {renderSortHeader('1W Return', '1W Return')}
                             {renderSortHeader('1M Return', '1M Return')}
@@ -267,7 +270,8 @@ const IndicesPage = () => {
                             {renderSortHeader('6M Return', '6M Return')}
                             {renderSortHeader('9M Return', '9M Return')}
                             {renderSortHeader('1Y Return', '1Y Return')}
-                            {hasCustomReturn && renderSortHeader('Custom Return', 'Custom Return')}
+                            {renderSortHeader('Drawdown', 'Drawdown')}
+                            {/* {hasCustomReturn && renderSortHeader('Custom Return', 'Custom Return')} */}
                         </tr>
                     </thead>
                     <tbody>
@@ -275,6 +279,9 @@ const IndicesPage = () => {
                             <tr key={index}>
                                 <td>{idx + 1}</td> {/* Serial number linked to sorted indices */}
                                 <td>{index}</td>
+                                <td>{returns['1D']}%</td>
+                                <td>{returns['2D']}%</td>
+                                <td>{returns['3D']}%</td>
                                 <td>{returns['10D']}%</td>
                                 <td>{returns['1W']}%</td>
                                 <td>{returns['1M']}%</td>
@@ -282,6 +289,7 @@ const IndicesPage = () => {
                                 <td>{returns['6M']}%</td>
                                 <td>{returns['9M']}%</td>
                                 <td>{returns['1Y']}%</td>
+                                <td>{returns['Drawdown']}%</td>
                                 {hasCustomReturn && <td>{returns['Custom'] !== undefined ? `${returns['Custom']}%` : '-'}</td>}
                             </tr>
                         ))}
@@ -318,7 +326,7 @@ const IndicesPage = () => {
 
             </div>
 
-            <div className='d-flex gap-2 mb-3'>
+            {/* <div className='d-flex gap-2 mb-3'>
                 <div className='d-flex gap-2 mb-3'>
                     <input
                         type='date'
@@ -340,7 +348,7 @@ const IndicesPage = () => {
                         Export to Excel
                     </Button>
                 </div>
-            </div>
+            </div> */}
 
             {/* Broad Based Indices */}
             {renderIndicesTable(broadBased, 'Broad Based Indices')}

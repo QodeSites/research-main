@@ -29,36 +29,36 @@ const IndexTable = () => {
 
     // Define the indices for each category in the desired order
     const broadBasedIndices = [
-        'NSE:NIFTY 50',
-        'NSE:NIFTY 500',
-        'NSE:NIFTY NEXT 50',
-        // 'NSE:NIFTY 100',
-        'NSE:NIFTY MIDCAP 100',
-        'NSE:NIFTY SMLCAP 250',
+        'NIFTY 50',
+        'NIFTY 500',
+        'NIFTY NEXT 50',
+        //SE:NIFTY 100',
+        'NIFTY MIDCAP 100',
+        'NIFTY SMLCAP 250',
         // 'NSE:NIFTY MICROCAP250'
     ];
 
     const sectoralIndices = [
-        'NSE:NIFTY BANK',
-        'NSE:NIFTY AUTO',
-        'NSE:NIFTY FINANCIAL SVC',
-        'NSE:NIFTY FMCG',
-        'NSE:NIFTY IT',
-        'NSE:NIFTY MEDIA',
-        'NSE:NIFTY METAL',
-        'NSE:NIFTY PHARMA',
-        'NSE:NIFTY PSU BANK',
-        'NSE:NIFTY PVT BANK',
-        'NSE:NIFTY REALTY',
-        'NSE:NIFTY HEALTHCARE',
-        'NSE:NIFTY CONSR DURBL',
-        'NSE:NIFTY NIFTY OIL AND GAS',
-        'NSE:NIFTY COMMODITIES',
-        'NSE:NIFTY CONSUMPTION',
-        'NSE:NIFTY CPSE',
-        'NSE:NIFTY ENERGY',
-        'NSE:NIFTY INFRA',
-        'NSE:NIFTY PSE'
+        'NIFTY BANK',
+        'NIFTY AUTO',
+        'NIFTY FINANCIAL SVC',
+        'NIFTY FMCG',
+        'NIFTY IT',
+        'NIFTY MEDIA',
+        'NIFTY METAL',
+        'NIFTY PHARMA',
+        'NIFTY PSU BANK',
+        'NIFTY PVT BANK',
+        'NIFTY REALTY',
+        'NIFTY HEALTHCARE',
+        'NIFTY CONSR DURBL',
+        'NIFTY NIFTY OIL AND GAS',
+        'NIFTY COMMODITIES',
+        'NIFTY CONSUMPTION',
+        'NIFTY CPSE',
+        'NIFTY ENERGY',
+        'NIFTY INFRA',
+        'NIFTY PSE'
     ];
 
     // Function to segregate and order indices into Broad Based and Sectoral
