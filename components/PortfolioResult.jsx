@@ -416,6 +416,8 @@ function CombinedPortfolioResults({ portfolios }) {
     });
   }, [portfolios]);
 
+  
+
   // =================================================================
   // Table / Utility functions
   // =================================================================
@@ -531,30 +533,65 @@ function CombinedPortfolioResults({ portfolios }) {
   };
 
   const formatValue = (value, key) => {
-    if (value == null || isNaN(value)) return "N/A";
+    if (value == null || isNaN(value)) return 'N/A';
 
-    // If it's a "year" metric
-    if (key === "Best Year" || key === "Worst Year") {
+    if (key === 'Best Year' || key === 'Worst Year') {
       return Math.round(value).toString();
     }
 
-    // Which metrics to show as a percentage
     const percentageMetrics = [
-      "Annualized Return (CAGR)",
-      "Best Year Return",
-      "Worst Year Return",
-      "Standard Deviation (annualized)",
-      "Maximum Drawdown",
-      "Treynor Ratio (%)",
+      'Annualized Return (CAGR)',
+      'Best Year Return',
+      'Worst Year Return',
+      'Standard Deviation (annualized)',
+      'Maximum Drawdown',
+      'Treynor Ratio (%)'
     ];
 
     if (percentageMetrics.includes(key)) {
-      // Convert from decimal to percentage
       return `${(value * 100).toFixed(2)}%`;
     }
 
     return value.toFixed(2);
   };
+
+  const MetricsTable = ({ title, metrics }) => (
+    <Card className="mb-4">
+      <Card.Header>
+        <h5 className="mb-0">{title}</h5>
+      </Card.Header>
+      <Card.Body>
+        <Table striped bordered hover responsive>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              {portfolios.map((_, index) => (
+                <th key={index} className="text-center">
+                  Portfolio {index + 1}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map(({ label, key }) => (
+              <tr key={key}>
+                <td>{label}</td>
+                {portfolios.map((portfolio, idx) => {
+                  const value = getMetricValue(portfolio, key);
+                  return (
+                    <td key={idx} className="text-center">
+                      {formatValue(value, key)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Card.Body>
+    </Card>
+  );
+
 
   // =================================================================
   //  Final Render
@@ -606,6 +643,18 @@ function CombinedPortfolioResults({ portfolios }) {
 
       {/* Additional Tables */}
       {renderMetricsComparison()}
+
+      {/* New risk and return metrics sections */}
+      <div className="mt-4">
+          <MetricsTable 
+            title="1 Performance Summary" 
+            metrics={performanceMetrics} 
+          />
+          <MetricsTable 
+            title="4 Risk and Return Metrics" 
+            metrics={riskReturnMetrics} 
+          />
+        </div>
       {renderDrawdownsComparison()}
     </Container>
   );
