@@ -20,14 +20,14 @@ const DefaultDashboardLayout = (props) => {
 				/>
 			</div>
 			<div id="page-content">
-				{/* <div className="header">
+				<div className="header">
 					<NavbarTop
 						data={{
 							showMenu: showMenu,
 							SidebarToggleMenu: ToggleMenu
 						}}
 					/>
-				</div> */}
+				</div>
 				{props.children}
 				{/* <div className='px-6 border-top py-3'>
 					<Row>
