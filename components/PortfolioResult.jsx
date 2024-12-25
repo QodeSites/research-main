@@ -1,113 +1,213 @@
-// src/components/pythonCalculator/PortfolioResult.jsx
-
 import React, { useState, useEffect } from "react";
-import { Table, Spinner, Button, Row, Col, Card, Alert } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Table,
+  Alert,
+  Button,
+  Nav,
+  Tab,
+} from "react-bootstrap";
 import HighchartsReact from "highcharts-react-official";
 import Highcharts from "highcharts";
-import MonthlyPLTable from "./MonthlyPLTable";
-import CAGRBarChart from "./CagrBarChart";
 import { calculateDaysBetween } from "utils/dateUtils";
 import { toast } from "react-toastify";
 
-function PortfolioResult({ portfolio, index }) {
+// --------------------- Metrics Arrays ---------------------
+const performanceMetrics = [
+  { label: "Annualized Return (CAGR)", key: "Annualized Return (CAGR)" },
+  {
+    label: "Standard Deviation (annualized)",
+    key: "Standard Deviation (annualized)",
+  },
+  { label: "Best Year", key: "Best Year" },
+  { label: "Best Year Return", key: "Best Year Return" },
+  { label: "Worst Year", key: "Worst Year" },
+  { label: "Worst Year Return", key: "Worst Year Return" },
+  { label: "Maximum Drawdown", key: "Maximum Drawdown" },
+];
+
+const riskReturnMetrics = [
+  {
+    label: "Standard Deviation (annualized)",
+    key: "Standard Deviation (annualized)",
+  },
+  { label: "Maximum Drawdown", key: "Maximum Drawdown" },
+  { label: "Beta", key: "Beta" },
+  { label: "Alpha (annualized)", key: "Alpha (annualized)" },
+  { label: "Sharpe Ratio", key: "Sharpe Ratio" },
+  { label: "Sortino Ratio", key: "Sortino Ratio" },
+  { label: "Treynor Ratio (%)", key: "Treynor Ratio (%)" },
+  { label: "Calmar Ratio", key: "Calmar Ratio" },
+];
+
+// --------------------- Rolling Returns ---------------------
+const calculateRollingReturns = (equityData, window) => {
+  if (!equityData || equityData.length < window) return [];
+  const rollingReturns = [];
+
+  for (let i = window; i < equityData.length; i++) {
+    const currentNAV = equityData[i].NAV;
+    const pastNAV = equityData[i - window].NAV;
+    const return_ = (currentNAV / pastNAV - 1) * 100; // as a percent
+
+    // Parse the date correctly
+    const [day, month, year] = equityData[i].date.split("-");
+    const dateUTC = Date.UTC(+year, +month - 1, +day);
+
+    rollingReturns.push({
+      date: dateUTC,
+      return: return_,
+    });
+  }
+  return rollingReturns;
+};
+
+// --------------------- Trailing Returns ---------------------
+const calculateTrailingReturns = (equityData, periods) => {
+  // periods is an array like [1, 3, 5, 10] (years)
+  if (!equityData?.length) return [];
+
+  const lastIndex = equityData.length - 1;
+  const lastDate = new Date(equityData[lastIndex].date);
+
+  return periods.map((period) => {
+    // Convert years to approximate days
+    const daysAgo = period * 365;
+
+    // Find the earliest date in equityData that is within 'daysAgo' from lastDate
+    const startIndex = equityData.findIndex((point) => {
+      const pointDate = new Date(point.date);
+      const diffDays = (lastDate - pointDate) / (1000 * 60 * 60 * 24);
+      return diffDays <= daysAgo;
+    });
+
+    if (startIndex === -1) return null; // Not enough data for this period
+
+    const startNAV = equityData[startIndex].NAV;
+    const endNAV = equityData[lastIndex].NAV;
+    // Annualized return
+    const return_ = ((endNAV / startNAV) ** (1 / period) - 1) * 100;
+
+    return {
+      period: `${period}Y`,
+      return: return_,
+    };
+  });
+};
+
+// ====================== Main Component ======================
+function CombinedPortfolioResults({ portfolios }) {
+  // --------------------- Main NAV + Drawdown Chart Options ---------------------
   const [chartOptions, setChartOptions] = useState({
     title: {
-      text: `Portfolio ${index + 1} Equity Curve`,
+      text: "Portfolio Performance",
+      align: "left",
+      style: { fontSize: "18px" },
+    },
+    chart: {
+      backgroundColor: "white",
+      zoomType: "x",
+      height: 600,
+      spacingRight: 10,
+      spacingLeft: 0,
+      spacingBottom: 15,
+      spacingTop: 10,
+      marginLeft: 80,
+      marginRight: 50,
+      style: {
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial',
+      },
     },
     xAxis: {
       type: "datetime",
       labels: {
         formatter: function () {
           const date = new Date(this.value);
-          return `${date.toLocaleString("default", { month: "short" })} ${date.getFullYear()}`;
+          return `${date.toLocaleString("default", {
+            month: "short",
+          })} ${date.getFullYear()}`;
         },
+        style: { fontSize: "12px" },
       },
     },
     yAxis: [
       {
         title: {
-          text: "Value",
+          align: "middle",
+          style: { fontSize: "12px" },
         },
-        height: "60%",
+        height: "65%",
         min: 0,
-        tickAmount: 4,
+        tickAmount: 6,
+        labels: {
+          align: "left",
+          x: -60,
+          style: { fontSize: "12px" },
+          formatter: function () {
+            return Highcharts.numberFormat(this.value, 0);
+          },
+        },
+        offset: 0,
+        gridLineWidth: 1,
+        tickLength: 5,
+        tickPosition: 'inside',
+        tickmarkPlacement: 'on',
       },
       {
         title: {
-          text: "Drawdown (%)",
+          align: "middle",
+          style: { fontSize: "12px" },
         },
         opposite: false,
-        top: "60%",
-        height: "40%",
-        left: "6%",
-      },
-    ],
-    series: [
-      {
-        name: "NAV",
-        data: [],
-        color: "#d1a47b",
-        lineWidth: 1,
-        marker: {
-          enabled: false,
-          states: {
-            hover: {
-              enabled: true,
-              radius: 5,
-            },
+        top: "70%",
+        height: "30%",
+        labels: {
+          align: "left",
+          x: -60,
+          style: { fontSize: "12px" },
+          formatter: function () {
+            return Highcharts.numberFormat(this.value, 1) + "%";
           },
         },
-        type: "line",
-        yAxis: 0,
-        animation: { duration: 2000 },
-      },
-      {
-        name: "Drawdown",
-        data: [],
-        color: "rgba(250, 65, 65, 1)",
-        lineWidth: 2,
-        marker: {
-          enabled: false,
-        },
-        fillColor: {
-          linearGradient: {
-            x1: 0,
-            y1: 0,
-            x2: 0,
-            y2: 1,
-          },
-          stops: [
-            [0, "rgba(0, 0, 0, 0.2)"],
-            [1, "rgba(0, 0, 0, 0.9)"],
-          ],
-        },
-        type: "line",
-        yAxis: 1,
-        threshold: 0,
-        animation: { duration: 2000 },
+        offset: 0,
+        gridLineWidth: 1,
+        tickLength: 5,
+        tickPosition: 'inside',
+        tickmarkPlacement: 'on',
       },
     ],
-    chart: {
-      backgroundColor: "none",
-      zoomType: "x",
-      marginLeft: 0,
-      marginRight: 0,
+    legend: {
+      enabled: true,
+      align: "left",
+      verticalAlign: "top",
+      floating: false,
+      padding: 10,
+      itemStyle: { fontSize: "12px" },
     },
     tooltip: {
       shared: true,
-    },
-    legend: {
-      enabled: true,
-    },
-    credits: {
-      enabled: false,
-    },
-    exporting: {
-      enabled: true,
+      split: false,
+      formatter: function () {
+        let tooltipHtml = `<b>${Highcharts.dateFormat(
+          "%Y-%m-%d",
+          this.x
+        )}</b><br/>`;
+        this.points.forEach((point) => {
+          const value = point.series.name.includes("Drawdown")
+            ? `${Highcharts.numberFormat(point.y, 1)}%`
+            : Highcharts.numberFormat(point.y, 0);
+          tooltipHtml += `<span style="color:${point.series.color}">\u25CF</span> ${point.series.name}: <b>${value}</b><br/>`;
+        });
+        return tooltipHtml;
+      },
     },
     plotOptions: {
       series: {
-        animation: { duration: 2000 },
+        animation: { duration: 1500 },
         states: {
           hover: {
             enabled: true,
@@ -116,205 +216,399 @@ function PortfolioResult({ portfolio, index }) {
         },
       },
     },
-    navigation: {
-      buttonOptions: {
-        enabled: true,
-      },
-    },
-  });
-
-  useEffect(() => {
-    if (
-      portfolio.result &&
-      portfolio.result.equity_curve_data &&
-      portfolio.result.drawdown_data
-    ) {
-      const chartData = portfolio.result.equity_curve_data.map((point) => {
-        const [day, month, year] = point.date.split("-");
-        const date = Date.UTC(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day)
-        );
-
-        return [date, point.NAV];
-      });
-
-      const drawdownData = portfolio.result.drawdown_data.map((point) => {
-        const [day, month, year] = point.date.split("-");
-        const date = Date.UTC(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day)
-        );
-        return [date, point.Drawdown];
-      });
-
-      setChartOptions((prevOptions) => ({
-        ...prevOptions,
-        series: [
-          {
-            ...prevOptions.series[0],
-            data: chartData,
+    series: [],
+    credits: { enabled: false },
+    responsive: {
+      rules: [
+        {
+          condition: {
+            maxWidth: 100,
           },
-          {
-            ...prevOptions.series[1],
-            data: drawdownData,
-          },
-        ],
-        tooltip: {
-          shared: true,
-          formatter: function () {
-            let tooltipHtml = `<b>${Highcharts.dateFormat("%Y-%m-%d", this.x)}</b><br/>`;
-            this.points.forEach((point) => {
-              tooltipHtml += `<span style="color:${point.series.color}">\u25CF</span> ${point.series.name}: <b>${Math.round(point.y)}</b><br/>`;
-            });
-            return tooltipHtml;
+          chartOptions: {
+            legend: {
+              layout: "horizontal",
+              align: "center",
+              verticalAlign: "bottom",
+            },
           },
         },
-      }));
-    }
-  }, [portfolio]);
+      ],
+    },
+});
 
-  const handleDownloadReport = () => {
-    if (!portfolio.result || !portfolio.result.equity_curve_data) return;
+  // --------------------- Rolling Returns Chart ---------------------
+  const [rollingReturnsOptions, setRollingReturnsOptions] = useState({});
 
-    // Convert equity_curve_data to CSV
-    let csvContent = "date,NAV\n";
-    portfolio.result.equity_curve_data.forEach((point) => {
-      csvContent += `${point.date},${point.NAV}\n`;
+  // --------------------- Trailing Returns Chart ---------------------
+  const [trailingReturnsOptions, setTrailingReturnsOptions] = useState({});
+
+  // =================================================================
+  //  Build Chart Data in useEffect when portfolios changes
+  // =================================================================
+  useEffect(() => {
+    if (!portfolios?.length) return;
+
+    // ----------------------------------
+    // (A) Main NAV + Drawdown Chart
+    // ----------------------------------
+    const mainSeries = [];
+    portfolios.forEach((portfolio, index) => {
+      if (portfolio.result?.equity_curve_data) {
+        // NAV
+        const chartData = portfolio.result.equity_curve_data.map((point) => {
+          const [day, month, year] = point.date.split("-");
+          const dateUTC = Date.UTC(+year, +month - 1, +day);
+          return [dateUTC, point.NAV];
+        });
+
+        mainSeries.push({
+          name: `Portfolio ${index + 1} NAV`,
+          data: chartData,
+          color: `hsl(${(index * 120) % 360}, 70%, 50%)`,
+          lineWidth: 1,
+          yAxis: 0,
+          type: "line",
+        });
+
+        // Drawdown
+        const drawdownData = portfolio.result.drawdown_data.map((point) => {
+          const [day, month, year] = point.date.split("-");
+          const dateUTC = Date.UTC(+year, +month - 1, +day);
+          return [dateUTC, point.Drawdown];
+        });
+
+        mainSeries.push({
+          name: `Portfolio ${index + 1} Drawdown`,
+          data: drawdownData,
+          color: `hsl(${(index * 120) % 360}, 70%, 35%)`,
+          lineWidth: 1,
+          yAxis: 1,
+          dashStyle: "shortdot",
+        });
+      }
     });
+
+    setChartOptions((prev) => ({
+      ...prev,
+      series: mainSeries,
+    }));
+
+    // ----------------------------------
+    // (B) Rolling Returns Chart (1Y)
+    // ----------------------------------
+    const rollingReturnsSeries = portfolios
+      .map((portfolio, index) => {
+        const eqData = portfolio.result?.equity_curve_data || [];
+        const rolling1Y = calculateRollingReturns(eqData, 252); // 252 trading days
+
+        return {
+          name: `Portfolio ${index + 1} - 1Y Rolling`,
+          data: rolling1Y.map((pt) => [pt.date, pt.return]),
+          color: `hsl(${(index * 120) % 360}, 70%, 50%)`,
+          type: "line",
+        };
+      })
+      .filter((series) => series.data.length > 0); // Only include series with data
+
+    setRollingReturnsOptions({
+      title: {
+        text: "Rolling Returns (1 Year)",
+        style: { fontSize: "18px" },
+      },
+      chart: {
+        type: "line",
+        height: 400,
+        backgroundColor: "white",
+        zoomType: "x",
+      },
+      xAxis: {
+        type: "datetime",
+        labels: {
+          formatter: function () {
+            return Highcharts.dateFormat("%Y-%m-%d", this.value);
+          },
+        },
+      },
+      yAxis: {
+        title: {
+          text: "Return (%)",
+          style: { fontSize: "12px" },
+        },
+        labels: {
+          format: "{value:.1f}%",
+          style: { fontSize: "12px" },
+        },
+      },
+      tooltip: {
+        shared: true,
+        crosshairs: true,
+        formatter: function () {
+          let tooltipHtml = `<b>${Highcharts.dateFormat(
+            "%Y-%m-%d",
+            this.x
+          )}</b><br/>`;
+          this.points.forEach((point) => {
+            tooltipHtml += `<span style="color:${
+              point.series.color
+            }">\u25CF</span> ${point.series.name}: <b>${point.y.toFixed(
+              2
+            )}%</b><br/>`;
+          });
+          return tooltipHtml;
+        },
+      },
+      legend: {
+        enabled: true,
+        itemStyle: { fontSize: "12px" },
+      },
+      plotOptions: {
+        series: {
+          animation: { duration: 1500 },
+          states: {
+            hover: {
+              enabled: true,
+              lineWidthPlus: 1,
+            },
+          },
+        },
+      },
+      series: rollingReturnsSeries,
+      credits: { enabled: false },
+    });
+
+    // ----------------------------------
+    // (C) Trailing Returns Chart
+    // ----------------------------------
+    // Example periods: 1, 3, 5, 10 years
+    const periods = [1, 3, 5, 10];
+    const trailingReturnsSeries = portfolios.map((portfolio, index) => {
+      const eqData = portfolio.result?.equity_curve_data || [];
+      const trailing = calculateTrailingReturns(eqData, periods);
+      return {
+        name: `Portfolio ${index + 1}`,
+        data: trailing.map((tr) => (tr ? tr.return : null)),
+        color: `hsl(${(index * 120) % 360}, 70%, 50%)`,
+      };
+    });
+
+    setTrailingReturnsOptions({
+      title: { text: "Trailing Returns" },
+      chart: {
+        type: "column",
+        height: 400,
+        backgroundColor: "white",
+      },
+      xAxis: {
+        categories: periods.map((p) => `${p}Y`),
+      },
+      yAxis: {
+        title: { text: "Return (%)" },
+        labels: {
+          format: "{value:.1f}%",
+        },
+      },
+      tooltip: {
+        shared: true,
+        valueDecimals: 2,
+        valueSuffix: "%",
+      },
+      series: trailingReturnsSeries,
+    });
+  }, [portfolios]);
+
+  // =================================================================
+  // Table / Utility functions
+  // =================================================================
+  const renderMetricsComparison = () => {
+    if (!portfolios?.length) return null;
+    return (
+      <Row className="mt-4">
+        <Col xs={12}>
+          <h5 className="mb-3">Performance Metrics Comparison</h5>
+          <Table striped bordered hover responsive>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                {portfolios.map((_, idx) => (
+                  <th key={idx}>Portfolio {idx + 1}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { key: "car", label: "CAGR (%)" },
+                { key: "max_dd", label: "Max Drawdown (%)" },
+                { key: "avg_dd", label: "Avg Drawdown (%)" },
+                { key: "carbymdd", label: "CAR/MDD" },
+                { key: "max_gain", label: "Max Gain/Day (%)" },
+                { key: "max_loss", label: "Max Loss/Day (%)" },
+              ].map((metric) => (
+                <tr key={metric.key}>
+                  <td>{metric.label}</td>
+                  {portfolios.map((portfolio, idx) => (
+                    <td key={idx}>
+                      {portfolio.result?.[metric.key]?.toFixed(1) || "N/A"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Col>
+      </Row>
+    );
+  };
+
+  const renderDrawdownsComparison = () => {
+    if (!portfolios?.length) return null;
+    return (
+      <Row className="mt-4">
+        {portfolios.map((portfolio, portfolioIndex) => (
+          <Col md={6} key={portfolioIndex}>
+            <h5 className="mb-3">
+              Portfolio {portfolioIndex + 1} - Top Drawdowns
+            </h5>
+            <Table striped bordered hover responsive size="sm">
+              <thead>
+                <tr>
+                  <th>DD (%)</th>
+                  <th>Peak</th>
+                  <th>Bottom</th>
+                  <th>Recovery</th>
+                  <th>Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolio.result?.top_10_worst_drawdowns
+                  ?.slice(0, 5)
+                  .map((dd, idx) => (
+                    <tr key={idx}>
+                      <td>{dd.Drawdown.toFixed(1)}</td>
+                      <td>{dd.Peak_date}</td>
+                      <td>{dd.Drawdown_date}</td>
+                      <td>{dd.Recovery_date}</td>
+                      <td>
+                        {dd.Recovery_date !== "Not Recovered"
+                          ? calculateDaysBetween(dd.Peak_date, dd.Recovery_date)
+                          : "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </Table>
+          </Col>
+        ))}
+      </Row>
+    );
+  };
+
+  const handleDownloadReport = (portfolioIndex) => {
+    const portfolio = portfolios[portfolioIndex];
+    if (!portfolio?.result?.equity_curve_data) return;
+
+    const csvContent =
+      "date,NAV\n" +
+      portfolio.result.equity_curve_data
+        .map((point) => `${point.date},${point.NAV}`)
+        .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `equity_curve_portfolio_${portfolio.portfolio_index}.csv`);
+    link.setAttribute(
+      "download",
+      `equity_curve_portfolio_${portfolioIndex + 1}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     toast.success("Report downloaded successfully.");
   };
 
-  const renderMetrics = () => {
-    if (
-      !portfolio.result ||
-      !portfolio.result.equity_curve_data ||
-      portfolio.result.equity_curve_data.length < 2
-    )
-      return null;
-
-    // Get the first and last dates from equity_curve_data
-    const dates = portfolio.result.equity_curve_data.map(
-      (point) => new Date(point.date.split("-").reverse().join("-"))
-    );
-    const startdate = dates[0];
-    const enddate = dates[dates.length - 1];
-
-    // Calculate the date range in days
-    const dateRangeInDays = (enddate - startdate) / (1000 * 60 * 60 * 24);
-    const isLessThanOneYear = dateRangeInDays <= 365;
-
-    const metrics = [
-      {
-        key: isLessThanOneYear ? "Absolute Returns" : "CAGR",
-        value: portfolio.result.car.toFixed(1) + "%",
-      },
-      { key: "Max Drawdown", value: portfolio.result.max_dd.toFixed(1) + "%" },
-      { key: "Avg Drawdown", value: portfolio.result.avg_dd.toFixed(1) + "%" },
-      { key: "CAR/MDD", value: portfolio.result.carbymdd.toFixed(1) },
-      { key: "Max Gain / Day", value: portfolio.result.max_gain.toFixed(1) + "%" },
-      { key: "Max Loss / Day", value: portfolio.result.max_loss.toFixed(1) + "%" },
-    ];
-
-    return (
-      <>
-        <h5 className="mt-4 mb-3">
-          Performance Metrics - Portfolio {portfolio.portfolio_index}
-        </h5>
-        <Row>
-          {metrics.map((metric, idx) => (
-            <Col xs={12} sm={6} md={4} key={idx} className="mb-3">
-              <Card className="text-center h-100">
-                <Card.Body>
-                  <Card.Title className="text-muted">{metric.key}</Card.Title>
-                  <Card.Text className="fw-bold">{metric.value}</Card.Text>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </>
-    );
+  const getMetricValue = (portfolio, key) => {
+    return portfolio?.result?.additional_risk_return_metrics?.[key];
   };
 
-  const renderDrawdownsTable = () => {
-    if (
-      !portfolio.result?.top_10_worst_drawdowns ||
-      portfolio.result.top_10_worst_drawdowns.length === 0
-    ) {
-      return <Alert variant="info">No drawdown data available.</Alert>;
+  const formatValue = (value, key) => {
+    if (value == null || isNaN(value)) return "N/A";
+
+    // If it's a "year" metric
+    if (key === "Best Year" || key === "Worst Year") {
+      return Math.round(value).toString();
     }
 
-    return (
-      <>
-        <h5 className="mt-4 mb-3">
-          Top 10 Worst Drawdowns - Portfolio {portfolio.portfolio_index}
-        </h5>
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>Drawdown</th>
-              <th>Peak date</th>
-              <th>Drawdown date</th>
-              <th>Recovery date</th>
-              <th>Days to Recover</th>
-            </tr>
-          </thead>
-          <tbody>
-            {portfolio.result.top_10_worst_drawdowns.map((row, index) => (
-              <tr key={index}>
-                <td>{row.Drawdown.toFixed(1)}%</td>
-                <td>{row.Peak_date}</td>
-                <td>{row.Drawdown_date}</td>
-                <td>{row.Recovery_date}</td>
-                <td>
-                  {row.Recovery_date !== "Not Recovered"
-                    ? calculateDaysBetween(row.Peak_date, row.Recovery_date)
-                    : "Not Recovered"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </>
-    );
+    // Which metrics to show as a percentage
+    const percentageMetrics = [
+      "Annualized Return (CAGR)",
+      "Best Year Return",
+      "Worst Year Return",
+      "Standard Deviation (annualized)",
+      "Maximum Drawdown",
+      "Treynor Ratio (%)",
+    ];
+
+    if (percentageMetrics.includes(key)) {
+      // Convert from decimal to percentage
+      return `${(value * 100).toFixed(2)}%`;
+    }
+
+    return value.toFixed(2);
   };
 
+  // =================================================================
+  //  Final Render
+  // =================================================================
   return (
-    <Card className="mb-4">
-      <Card.Body>
-        <Button
-          variant="primary"
-          onClick={handleDownloadReport}
-          className="mb-3"
-        >
-          Download Report
-        </Button>
+    <Container fluid className="mb-4">
+      {/* Download Buttons */}
+      <Row className="my-3">
+        {portfolios.map((_, index) => (
+          <Col key={index} xs="auto">
+            <Button
+              variant="primary"
+              onClick={() => handleDownloadReport(index)}
+            >
+              Download Portfolio {index + 1}
+            </Button>
+          </Col>
+        ))}
+      </Row>
 
-        <HighchartsReact highcharts={Highcharts} options={chartOptions} />
+      {/* Main NAV + Drawdown Chart */}
+      <HighchartsReact highcharts={Highcharts} options={chartOptions} />
 
-        {renderMetrics()}
-        {renderDrawdownsTable()}
+      {/* Rolling Returns Chart */}
+      <Row className="mt-4">
+        <Col>
+          {rollingReturnsOptions?.series &&
+            rollingReturnsOptions.series.length > 0 && (
+              <HighchartsReact
+                highcharts={Highcharts}
+                options={rollingReturnsOptions}
+              />
+            )}
+        </Col>
+      </Row>
 
-        {/* Assuming MonthlyPLTable and CAGRBarChart are also updated to use React Bootstrap */}
-        <MonthlyPLTable data={portfolio.result?.monthly_pl_table || []} />
-        {portfolio.result?.cagrData && (
-          <CAGRBarChart cagrData={portfolio.result.cagrData} />
-        )}
-      </Card.Body>
-    </Card>
+      {/* Trailing Returns Chart */}
+      <Row className="mt-4">
+        <Col>
+          {trailingReturnsOptions?.series &&
+            trailingReturnsOptions.series.length > 0 && (
+              <HighchartsReact
+                highcharts={Highcharts}
+                options={trailingReturnsOptions}
+              />
+            )}
+        </Col>
+      </Row>
+
+      {/* Additional Tables */}
+      {renderMetricsComparison()}
+      {renderDrawdownsComparison()}
+    </Container>
   );
 }
 
-export default PortfolioResult;
+export default CombinedPortfolioResults;

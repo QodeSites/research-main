@@ -1,31 +1,32 @@
 import React, { useState } from 'react';
 import PortfolioManager from 'components/PortfolioManager';
 import { Container, Spinner, Alert, Tab, Tabs } from 'react-bootstrap';
-import PortfolioResult from 'components/PortfolioResult';
-import PortfolioComparison from 'components/PortfolioComparison';
+import CombinedPortfolioResults from 'components/PortfolioResult';
 
-const index = () => {
-  // State management
+// API endpoint configuration based on environment
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://calculator.qodeinvest.com'
+  : 'http://192.168.0.107:5080';
+
+const PortfolioIndex = () => {
   const [loading, setLoading] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
   const [submissionError, setSubmissionError] = useState('');
   const [resultData, setResultData] = useState([]);
-  const [activeTab, setActiveTab] = useState('input'); // 'input' or 'results'
-  const [selectedPortfolioIndex, setSelectedPortfolioIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('input');
 
-  // Handler for form submission
   const handleFormSubmit = async (data) => {
     try {
       setLoading(true);
       setSubmissionResult(null);
       setSubmissionError('');
 
-      const response = await fetch('http://192.168.0.106:5080/api/portfolio/compare', {
+      const response = await fetch(`${API_BASE_URL}/api/portfolio/compare`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        withCredentials: true,
+        credentials: process.env.NODE_ENV === 'production' ? 'include' : 'same-origin',
         body: JSON.stringify(data)
       });
 
@@ -35,12 +36,9 @@ const index = () => {
       }
 
       const results = await response.json();
-      console.log('API Response:', results);
-
       setResultData(results.results);
       setSubmissionResult('Portfolios calculated successfully!');
-      setActiveTab('results'); // Switch to results tab after successful calculation
-      setSelectedPortfolioIndex(0); // Show first portfolio result by default
+      setActiveTab('results');
     } catch (error) {
       console.error('Submission error:', error);
       setSubmissionError(error.message || 'An error occurred while submitting portfolios');
@@ -49,21 +47,16 @@ const index = () => {
     }
   };
 
-  // Handler for portfolio tab selection
-  const handlePortfolioSelect = (portfolioIndex) => {
-    setSelectedPortfolioIndex(portfolioIndex);
-  };
-
-  // Handler for main tab selection
-  const handleTabSelect = (tab) => {
-    setActiveTab(tab);
-  };
-
   return (
     <Container className="my-5">
       <h1 className="text-center mb-4">Portfolio Calculator</h1>
 
-      {/* Alerts */}
+      {process.env.NODE_ENV !== 'production' && (
+        <Alert variant="info" className="mb-3">
+          Running in development mode - Using API: {API_BASE_URL}
+        </Alert>
+      )}
+
       {submissionResult && (
         <Alert variant="success" dismissible onClose={() => setSubmissionResult(null)}>
           {submissionResult}
@@ -76,14 +69,12 @@ const index = () => {
         </Alert>
       )}
 
-      {/* Main Tabs */}
       <Tabs
         activeKey={activeTab}
-        onSelect={handleTabSelect}
+        onSelect={(k) => setActiveTab(k)}
         id="portfolio-main-tabs"
         className="mb-4"
       >
-        {/* Input Tab */}
         <Tab eventKey="input" title="Portfolio Input">
           <PortfolioManager
             onSubmit={handleFormSubmit}
@@ -91,7 +82,6 @@ const index = () => {
             columns={['Custom1', 'Custom2']}
           />
 
-          {/* Loading Spinner */}
           {loading && (
             <div className="text-center mt-4">
               <Spinner animation="border" variant="primary" />
@@ -100,45 +90,16 @@ const index = () => {
           )}
         </Tab>
 
-        {/* Results Tab */}
-
         <Tab
           eventKey="results"
           title="Results"
           disabled={!resultData || resultData.length === 0}
         >
           {resultData && resultData.length > 0 && (
-            <div>
-              {/* Portfolio Results Navigation */}
-              <Tabs
-                activeKey={selectedPortfolioIndex}
-                onSelect={handlePortfolioSelect}
-                id="portfolio-results-tabs"
-                className="mb-4"
-              >
-                <Tab
-                  eventKey="summary"
-                  title="Summary"
-                  disabled={!resultData || resultData.length === 0}
-                >
-                  {resultData && resultData.length > 0 && (
-                    <PortfolioComparison portfolios={resultData} />
-                  )}
-                </Tab>
-                {resultData.map((_, index) => (
-                  <Tab
-                    key={index}
-                    eventKey={index}
-                    title={`Portfolio ${index + 1}`}
-                  >
-                    <PortfolioResult
-                      portfolio={resultData[index]}
-                      index={index}
-                    />
-                  </Tab>
-                ))}
-              </Tabs>
-            </div>
+            <CombinedPortfolioResults 
+              portfolios={resultData}
+              apiBaseUrl={API_BASE_URL}  // Pass API base URL to child component
+            />
           )}
         </Tab>
       </Tabs>
@@ -146,4 +107,4 @@ const index = () => {
   );
 };
 
-export default index;
+export default PortfolioIndex;

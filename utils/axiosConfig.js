@@ -3,7 +3,7 @@ import axios from 'axios';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 const baseURL = isDevelopment 
-  ? 'http://192.168.0.106:5080'
+  ? 'https://calculator.qodeinvest.com'
   : 'https://example.com';
 
 const app = axios.create({

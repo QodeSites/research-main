@@ -194,7 +194,7 @@ const PortfolioManager = ({
               title={`Portfolio ${index + 1}`}
               key={portfolio.id}
             > 
-              <FileUpload onColumnsUpdate={handleColumnsUpdate} />
+              {/* <FileUpload onColumnsUpdate={handleColumnsUpdate} /> */}
               <PortfolioCalculatorForm
                 key={portfolio.id}
                 index={index}
