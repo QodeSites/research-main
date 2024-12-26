@@ -45,6 +45,13 @@ const NavbarVertical = (props) => {
               Portfolio Visualiser
             </Link>
           </Card>
+
+          <Card bsPrefix="nav-item">
+            <Link href="/client-tracker" className="nav-link">
+               <Clipboard className="feather-icon" size={18} />&nbsp;
+              Client Tracker
+            </Link>
+          </Card>
         </Accordion>
         {/* end of Dashboard Menu */}
       </SimpleBar>
