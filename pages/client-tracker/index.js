@@ -226,10 +226,7 @@ const ClientTracker = () => {
                                 Cash % {renderSortIcon(portfolioSortConfig, 'cash_percentage')}
                             </th>
                             <th onClick={() => requestPortfolioSort('strategy')} style={{ cursor: 'pointer' }}>
-                                Strategy {renderSortIcon(portfolioSortConfig, 'strategy')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('actionables')} style={{ cursor: 'pointer' }}>
-                                Actionables {renderSortIcon(portfolioSortConfig, 'actionables')}
+                                Derivatives Percentage {renderSortIcon(portfolioSortConfig, 'derivatives_percentage')}
                             </th>
                         </tr>
                     </thead>
@@ -250,8 +247,7 @@ const ClientTracker = () => {
                                 }}>
                                     {formatNumber(item.cash_percentage)}%
                                 </td>
-                                <td>{item.strategy || '-'}</td>
-                                <td>{item.actionables || '-'}</td>
+                                <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
                             </tr>
                         ))}
                     </tbody>
