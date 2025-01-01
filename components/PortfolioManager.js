@@ -1,24 +1,25 @@
-// PortfolioManager.js
+// PortfolioManager.js 
 import React, { useState, useCallback } from 'react';
-import { 
-  Form, 
-  Button, 
-  Alert 
+import {
+  Form,
+  Button,
+  Alert,
+  Tab,
+  Tabs
 } from 'react-bootstrap';
 import PortfolioCalculatorForm from './PortfolioCalculatorForm';
 import moment from 'moment';
 import PropTypes from 'prop-types';
-import Tab from 'react-bootstrap/Tab';
-import Tabs from 'react-bootstrap/Tabs';
-import { FileUpload } from './FileUpload';
+// import { FileUpload } from './FileUpload'; // Uncomment if using FileUpload
 
-const PortfolioManager = ({ 
+const PortfolioManager = ({
   onSubmit,
   loading = false,
   columns = []
 }) => {
   const [portfolios, setPortfolios] = useState([{
     id: Date.now(),
+    name: 'Portfolio 1',
     start_date: null,
     end_date: null,
     invest_amount: '',
@@ -26,9 +27,10 @@ const PortfolioManager = ({
     frequency: 'yearly',
     selected_systems: [],
     selected_debtfunds: [],
+    benchmark: '',
     error: ''
   }]);
-  
+
   const [activeKey, setActiveKey] = useState('Portfolio-1');
   const [globalError, setGlobalError] = useState('');
   const [customColumns, setCustomColumns] = useState([]); // Initialize as empty array
@@ -62,20 +64,35 @@ const PortfolioManager = ({
         ...newPortfolios[index],
         ...updatedPortfolio
       };
+
+      // If the first portfolio's dates are updated, sync them to others
+      if (index === 0) {
+        const { start_date, end_date } = updatedPortfolio;
+        newPortfolios.forEach((portfolio, pIndex) => {
+          if (pIndex !== 0) {
+            newPortfolios[pIndex].start_date = start_date;
+            newPortfolios[pIndex].end_date = end_date;
+          }
+        });
+      }
+
       return newPortfolios;
     });
   }, []);
 
   const handleAddPortfolio = useCallback(() => {
+    const newIndex = portfolios.length + 1;
     const newPortfolio = {
       id: Date.now(),
-      start_date: null,
-      end_date: null,
+      name: `Portfolio ${newIndex}`,
+      start_date: portfolios[0].start_date,
+      end_date: portfolios[0].end_date,
       invest_amount: '',
       cash_percent: '',
       frequency: 'yearly',
       selected_systems: [],
       selected_debtfunds: [],
+      benchmark: '',
       error: ''
     };
     setPortfolios(prevPortfolios => [
@@ -83,9 +100,8 @@ const PortfolioManager = ({
       newPortfolio
     ]);
     // Automatically switch to the new portfolio's tab
-    const newIndex = portfolios.length + 1;
     setActiveKey(`Portfolio-${newIndex}`);
-  }, [portfolios.length]);
+  }, [portfolios]);
 
   const handleRemovePortfolio = useCallback((indexToRemove) => {
     setPortfolios(prevPortfolios => {
@@ -104,36 +120,18 @@ const PortfolioManager = ({
   // Validation Function
   const validatePortfolios = useCallback(() => {
     let isValid = true;
-    
-    setPortfolios(prevPortfolios => 
-      prevPortfolios.map(portfolio => {
+
+    setPortfolios(prevPortfolios =>
+      prevPortfolios.map((portfolio, pIndex) => {
         let error = '';
-        
-        if (!portfolio.start_date || !portfolio.end_date) {
-          error = 'Please select both start and end dates.';
-          isValid = false;
-        }
-        
-        if (!portfolio.invest_amount || parseFloat(portfolio.invest_amount) <= 0) {
-          error = error ? `${error} Investment amount must be greater than 0.` : 'Investment amount must be greater than 0.';
-          isValid = false;
-        }
 
-        if (!portfolio.selected_systems.length) {
-          error = error ? `${error} Please select at least one strategy.` : 'Please select at least one strategy.';
-          isValid = false;
-        }
-
-        const totalWeightage = [...portfolio.selected_systems, ...portfolio.selected_debtfunds]
+        const totalWeightage = [...portfolio.selected_systems]
           .reduce((sum, item) => sum + (parseFloat(item.weightage) || 0), 0);
-        
-        // Uncomment the following lines if you want to enforce weightage summing to 100%
-        /*
+
         if (Math.abs(totalWeightage - 100) > 0.1) {
           error = error ? `${error} Weightages must sum to 100%.` : 'Weightages must sum to 100%.';
           isValid = false;
         }
-        */
 
         return { ...portfolio, error };
       })
@@ -141,6 +139,7 @@ const PortfolioManager = ({
 
     return isValid;
   }, []);
+
 
   // Handle Form Submission
   const handleSubmit = useCallback(async (e) => {
@@ -154,11 +153,13 @@ const PortfolioManager = ({
 
     try {
       const submittedData = portfolios.map(portfolio => ({
-        start_date: moment(portfolio.start_date).format('DD-MM-YYYY'),
-        end_date: moment(portfolio.end_date).format('DD-MM-YYYY'),
+        name: portfolio.name,
+        start_date: portfolio.start_date ? moment(portfolio.start_date).format('DD-MM-YYYY') : null,
+        end_date: portfolio.end_date ? moment(portfolio.end_date).format('DD-MM-YYYY') : null,
         invest_amount: parseFloat(portfolio.invest_amount),
         cash_percent: portfolio.cash_percent ? parseFloat(portfolio.cash_percent) : 0,
         frequency: portfolio.frequency,
+        benchmark: portfolio.benchmark,
         selected_systems: portfolio.selected_systems.map(system => ({
           system: system.system,
           weightage: parseFloat(system.weightage) || 0,
@@ -186,36 +187,41 @@ const PortfolioManager = ({
             {globalError}
           </Alert>
         )}
-      
+
         <Tabs activeKey={activeKey} onSelect={handleSelect} id="controlled-tab-example">
           {portfolios.map((portfolio, index) => (
             <Tab
               eventKey={`Portfolio-${index + 1}`}
-              title={`Portfolio ${index + 1}`}
+              title={portfolio.name || `Portfolio ${index + 1}`}
               key={portfolio.id}
-            > 
-              {/* <FileUpload onColumnsUpdate={handleColumnsUpdate} /> */}
+            >
               <PortfolioCalculatorForm
                 key={portfolio.id}
                 index={index}
-                portfolioData={portfolio}
+                portfolioData={{
+                  ...portfolio,
+                  benchmark: index === 0 ? portfolio.benchmark : portfolios[0].benchmark, // Sync benchmark from the first portfolio
+                }}
                 onChange={handlePortfolioChange}
                 onRemove={handleRemovePortfolio}
-                columns={getAllColumns()} // Use getAllColumns here
+                columns={getAllColumns()}
                 isRemoveDisabled={portfolios.length === 1}
+                isFirstPortfolio={index === 0}
+                isBenchmarkDisabled={index !== 0} // Disable for all portfolios except the first
+                masterStartDate={portfolios[0].start_date}
+                masterEndDate={portfolios[0].end_date}
               />
             </Tab>
           ))}
-          <Tab 
-            eventKey="add-portfolio" 
-            title={<span>+ Add Portfolio</span>}
-          />
+          <Tab eventKey="add-portfolio" title={<span>+ Add Portfolio</span>} />
         </Tabs>
 
+
+
         <div className="d-flex justify-content-end align-items-center mb-4">
-          <Button 
-            type="submit" 
-            variant="success" 
+          <Button
+            type="submit"
+            variant="success"
             disabled={loading}
             className="px-4"
           >

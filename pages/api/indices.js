@@ -1,37 +1,6 @@
 import db from "../../lib/db";
 import { calculateReturns } from "../../utils/calculateReturns";
 import { calculateDrawdown } from "utils/calculateDrawdowns";
-// Function to calculate custom date returns
-const calculateCustomDateReturns = (data, startDate, endDate) => {
-    if (!data || data.length === 0) return null;
-    console.log('calculateCustomDateReturns',data);
-    
-    // Sort data by date to ensure chronological order
-    const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // Get start and end prices
-    const startPrice = sortedData[0].nav;
-    const endPrice = sortedData[sortedData.length - 1].nav;
-
-    // Calculate duration in years
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    console.log(start,end)
-    const durationInYears = (end - start) / (1000 * 60 * 60 * 24 * 365);
-
-    // Calculate returns
-    const absoluteReturn = ((endPrice - startPrice) / startPrice) * 100;
-    console.log('absoluteReturn',absoluteReturn);
-    
-    // If duration is less than 1 year, return absolute return
-    if (durationInYears <= 1) {
-        return Number(absoluteReturn.toFixed(2));
-    }
-
-    // If duration is more than 1 year, calculate CAGR
-    const cagr = (Math.pow(1 + absoluteReturn / 100, 1 / durationInYears) - 1) * 100;
-    return Number(cagr.toFixed(2));
-};
 
 export default async function handler(req, res) {
     const { startDate, endDate } = req.body;

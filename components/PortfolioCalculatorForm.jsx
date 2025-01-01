@@ -1,12 +1,12 @@
 // PortfolioCalculatorForm.js
 import React from 'react';
-import { 
-  Form, 
-  Button, 
-  Row, 
-  Col, 
-  InputGroup, 
-  ButtonGroup, 
+import {
+  Form,
+  Button,
+  Row,
+  Col,
+  InputGroup,
+  ButtonGroup,
   ToggleButton,
   Alert
 } from 'react-bootstrap';
@@ -67,19 +67,34 @@ const DEBTFUNDS = [
   { label: "QVF", value: "QVF" },
 ];
 
-const PortfolioCalculatorForm = ({ 
+const PortfolioCalculatorForm = ({
   index,
-  portfolioData = {}, // Provide a default empty object
-  onChange, 
-  onRemove, 
+  portfolioData = {},
+  onChange,
+  onRemove,
   columns = [],
-  isRemoveDisabled = false
+  isRemoveDisabled = false,
+  isFirstPortfolio = false,
+  masterStartDate = null,
+  masterEndDate = null,
+  isBenchmarkDisabled = false,
 }) => {
-  
+
   // Handle form data changes
   const handleInputChange = (field, value) => {
-    onChange(index, { ...portfolioData, [field]: value });
+    if (field === "invest_amount") {
+      // Remove commas for processing
+      const rawValue = value.replace(/,/g, '');
+      if (!isNaN(rawValue)) {
+        // Update the state with the raw value
+        onChange(index, { ...portfolioData, [field]: rawValue });
+      }
+    } else {
+      onChange(index, { ...portfolioData, [field]: value });
+    }
   };
+  
+  
 
   // Combine predefined strategies with custom columns
   const customColumnList = columns.map(column => ({
@@ -104,15 +119,28 @@ const PortfolioCalculatorForm = ({
   };
 
   const handleStrategySelect = (selectedList) => {
-    const equalWeightage = calculateEqualWeightage(selectedList.length);
+    const totalStrategies = selectedList.length;
+    const equalWeightage = 100 / totalStrategies;
+  
     const updatedSystems = selectedList.map(item => ({
       system: item.value,
-      weightage: equalWeightage,
+      weightage: parseFloat(equalWeightage.toFixed(1)),
       leverage: '1',
-      column: ''
+      column: '',
     }));
+  
+    // Adjust weightages proportionally
+    const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0);
+    if (totalWeight !== 100) {
+      const adjustmentFactor = 100 / totalWeight;
+      updatedSystems.forEach((system) => {
+        system.weightage = parseFloat((system.weightage * adjustmentFactor).toFixed(1));
+      });
+    }
+  
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
+  
 
   const handleDebtFundSelect = (selectedList) => {
     const equalWeightage = calculateEqualWeightage(selectedList.length);
@@ -126,12 +154,69 @@ const PortfolioCalculatorForm = ({
 
   const handleSystemInputChange = (systemIndex, field, value) => {
     const updatedSystems = [...(portfolioData.selected_systems || [])];
-    updatedSystems[systemIndex] = {
-      ...updatedSystems[systemIndex],
-      [field]: value
-    };
+    
+    if (field === 'weightage') {
+      // Convert input to number and ensure it's between 0 and 100
+      const newWeight = Math.min(Math.max(parseFloat(value) || 0, 0), 100);
+      
+      // Get sum of other weights before adjustment
+      const otherWeightsSum = updatedSystems.reduce((sum, system, idx) => 
+        idx === systemIndex ? sum : sum + (parseFloat(system.weightage) || 0), 0);
+      
+      // If other weights sum is 0, distribute remaining weight equally
+      if (otherWeightsSum === 0) {
+        const remainingWeight = 100 - newWeight;
+        const otherSystemsCount = updatedSystems.length - 1;
+        if (otherSystemsCount > 0) {
+          const equalShare = remainingWeight / otherSystemsCount;
+          updatedSystems.forEach((system, idx) => {
+            if (idx === systemIndex) {
+              system.weightage = newWeight;
+            } else {
+              system.weightage = parseFloat(equalShare.toFixed(1));
+            }
+          });
+        }
+      } else {
+        // Adjust other weights proportionally
+        const remainingWeight = 100 - newWeight;
+        const scaleFactor = remainingWeight / otherWeightsSum;
+        
+        updatedSystems.forEach((system, idx) => {
+          if (idx === systemIndex) {
+            system.weightage = newWeight;
+          } else {
+            const adjustedWeight = (parseFloat(system.weightage) || 0) * scaleFactor;
+            system.weightage = parseFloat(adjustedWeight.toFixed(1));
+          }
+        });
+        
+        // Handle rounding errors to ensure exact 100% total
+        const finalTotal = updatedSystems.reduce((sum, system) => 
+          sum + (parseFloat(system.weightage) || 0), 0);
+        if (Math.abs(finalTotal - 100) > 0.1) {
+          const difference = 100 - finalTotal;
+          // Add the difference to the largest weight that's not the currently edited one
+          let maxWeightIndex = systemIndex === 0 ? 1 : 0;
+          updatedSystems.forEach((system, idx) => {
+            if (idx !== systemIndex && (parseFloat(system.weightage) || 0) > (parseFloat(updatedSystems[maxWeightIndex].weightage) || 0)) {
+              maxWeightIndex = idx;
+            }
+          });
+          updatedSystems[maxWeightIndex].weightage = parseFloat((parseFloat(updatedSystems[maxWeightIndex].weightage) + difference).toFixed(1));
+        }
+      }
+    } else {
+      // Handle non-weightage fields (like leverage)
+      updatedSystems[systemIndex] = {
+        ...updatedSystems[systemIndex],
+        [field]: value,
+      };
+    }
+  
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
+  
 
   const handleDebtFundInputChange = (debtFundIndex, field, value) => {
     const updatedDebtFunds = [...(portfolioData.selected_debtfunds || [])];
@@ -150,12 +235,16 @@ const PortfolioCalculatorForm = ({
     { name: 'Yearly', value: 'yearly' }
   ];
 
+  // Extract benchmark options (indices)
+  const benchmarkOptions = STRATEGIES.filter(
+    (strategy) => strategy.group === "Index"
+  );
   return (
     <div className='border p-4 mb-4'>
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5>Portfolio {index + 1}</h5>
-        <Button 
-          variant="danger" 
+        <h5>{portfolioData.name || `Portfolio ${index + 1}`}</h5>
+        <Button
+          variant="danger"
           onClick={() => onRemove(index)}
           disabled={isRemoveDisabled} // Use the prop here
         >
@@ -163,6 +252,18 @@ const PortfolioCalculatorForm = ({
         </Button>
       </div>
       {portfolioData.error && <Alert variant="danger">{portfolioData.error}</Alert>}
+
+      {/* Portfolio Name */}
+      <Form.Group className="mb-4">
+        <Form.Label>Name *</Form.Label>
+        <Form.Control
+          type="text"
+          value={portfolioData.name || ''}
+          onChange={(e) => handleInputChange('name', e.target.value)}
+          placeholder="Enter portfolio name"
+          required
+        />
+      </Form.Group>
 
       {/* Choose Strategies */}
       <Form.Group className="mb-4">
@@ -188,9 +289,10 @@ const PortfolioCalculatorForm = ({
             </Col>
             <Col xs={12} md={4}>
               <InputGroup>
-                <Form.Control
+              <Form.Control
                   type="number"
                   min="0"
+                  step="0.1"
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
@@ -259,36 +361,57 @@ const PortfolioCalculatorForm = ({
         ))}
       </Form.Group>
 
+      {/* Benchmark Selection */}
+      <Form.Group className="mb-4">
+        <Form.Label>Benchmark</Form.Label>
+        <Form.Control
+          as="select"
+          value={portfolioData.benchmark || ""}
+          onChange={(e) => handleInputChange("benchmark", e.target.value)}
+          disabled={isBenchmarkDisabled} // Disable based on the prop
+        >
+          <option value="" disabled>
+            Select a benchmark
+          </option>
+          {benchmarkOptions.map((benchmark) => (
+            <option key={benchmark.value} value={benchmark.value}>
+              {benchmark.label}
+            </option>
+          ))}
+        </Form.Control>
+      </Form.Group>
       {/* Investment Period */}
       <Form.Group className="mb-4">
         <Form.Label>Investment Period *</Form.Label>
         <Row>
           <Col xs={12} md={6}>
             <DatePicker
-              selected={portfolioData.start_date}
-              onChange={date => handleInputChange('start_date', date)}
+              selected={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
+              onChange={date => isFirstPortfolio && handleInputChange('start_date', date)}
               selectsStart
-              startDate={portfolioData.start_date}
-              endDate={portfolioData.end_date}
+              startDate={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
+              endDate={isFirstPortfolio ? portfolioData.end_date : masterEndDate}
               minDate={new Date('2005-04-01')}
               maxDate={new Date('2024-10-01')}
               dateFormat="dd-MM-yyyy"
               className="form-control"
               placeholderText="Start Date"
+              disabled={!isFirstPortfolio}
             />
           </Col>
           <Col xs={12} md={6}>
             <DatePicker
-              selected={portfolioData.end_date}
-              onChange={date => handleInputChange('end_date', date)}
+              selected={isFirstPortfolio ? portfolioData.end_date : masterEndDate}
+              onChange={date => isFirstPortfolio && handleInputChange('end_date', date)}
               selectsEnd
-              startDate={portfolioData.start_date}
-              endDate={portfolioData.end_date}
-              minDate={portfolioData.start_date}
+              startDate={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
+              endDate={isFirstPortfolio ? portfolioData.end_date : masterEndDate}
+              minDate={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
               maxDate={new Date('2024-10-01')}
               dateFormat="dd-MM-yyyy"
               className="form-control"
               placeholderText="End Date"
+              disabled={!isFirstPortfolio}
             />
           </Col>
         </Row>
@@ -296,18 +419,19 @@ const PortfolioCalculatorForm = ({
 
       {/* Investment Amount & Cash Percentage */}
       <Form.Group className="mb-4">
-        <Form.Label>Investment Details</Form.Label>
+        <Form.Label>Investment Amount</Form.Label>
         <Row>
           <Col xs={12} md={6}>
             <InputGroup>
               <InputGroup.Text>₹</InputGroup.Text>
               <Form.Control
-                type="number"
-                min="0"
-                value={portfolioData.invest_amount}
-                onChange={e => handleInputChange('invest_amount', e.target.value)}
-                placeholder="Investment Amount"
-              />
+                  type="text"
+                  value={new Intl.NumberFormat('en-IN').format(portfolioData.invest_amount || '')} // Format for display
+                  onChange={(e) => handleInputChange('invest_amount', e.target.value)}
+                  placeholder="Investment Amount"
+                />
+
+
             </InputGroup>
           </Col>
           <Col xs={12} md={6}>
@@ -357,11 +481,34 @@ const PortfolioCalculatorForm = ({
 
 PortfolioCalculatorForm.propTypes = {
   index: PropTypes.number.isRequired,
-  portfolioData: PropTypes.object.isRequired,
+  portfolioData: PropTypes.shape({
+    name: PropTypes.string,
+    selected_systems: PropTypes.arrayOf(PropTypes.shape({
+      system: PropTypes.string,
+      weightage: PropTypes.string,
+      leverage: PropTypes.string,
+      column: PropTypes.string
+    })),
+    selected_debtfunds: PropTypes.arrayOf(PropTypes.shape({
+      debtfund: PropTypes.string,
+      weightage: PropTypes.string,
+      leverage: PropTypes.string
+    })),
+    benchmark: PropTypes.string,
+    start_date: PropTypes.instanceOf(Date),
+    end_date: PropTypes.instanceOf(Date),
+    invest_amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    cash_percent: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    frequency: PropTypes.string,
+    error: PropTypes.string
+  }).isRequired,
   onChange: PropTypes.func.isRequired,
   onRemove: PropTypes.func.isRequired,
   columns: PropTypes.array.isRequired,
-  isRemoveDisabled: PropTypes.bool
+  isRemoveDisabled: PropTypes.bool,
+  isFirstPortfolio: PropTypes.bool,
+  masterStartDate: PropTypes.instanceOf(Date),
+  masterEndDate: PropTypes.instanceOf(Date)
 };
 
 export default PortfolioCalculatorForm;

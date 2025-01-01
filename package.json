@@ -46,6 +46,7 @@
     "react-icons": "^5.4.0",
     "react-responsive": "^9.0.2",
     "react-toastify": "^11.0.2",
+    "recharts": "^2.15.0",
     "sass": "^1.81.0",
     "sass-loader": "^13.2.2",
     "simplebar": "^6.2.4",

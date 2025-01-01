@@ -6,7 +6,7 @@ import CombinedPortfolioResults from 'components/PortfolioResult';
 // API endpoint configuration based on environment
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://calculator.qodeinvest.com'
-  : 'http://192.168.0.107:5080';
+  : 'http://192.168.0.106:5080';
 
 const PortfolioIndex = () => {
   const [loading, setLoading] = useState(false);
