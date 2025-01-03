@@ -2,10 +2,6 @@ import React from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 
-// Optional: If you want to use additional Highcharts modules
-// import Exporting from 'highcharts/modules/exporting';
-// Exporting(Highcharts);
-
 const AnnualReturnsChart = ({ portfolios }) => {
   // Step 1: Extract all unique years
   const allYearsSet = new Set();
@@ -35,9 +31,7 @@ const AnnualReturnsChart = ({ portfolios }) => {
         style: {
           fontSize: '12px'
         }
-      },
-      // Assign an ID to each series for reference in plotLines
-      id: `cagr-${index}`
+      }
     };
   });
 
@@ -55,7 +49,7 @@ const AnnualReturnsChart = ({ portfolios }) => {
       value: cagr,
       width: 2,
       label: {
-        text: `CAGR (${series[index].name}): ${cagr}%`,
+        text: `CAGR: ${cagr}%`,
         align: 'right',
         style: {
           color: series[index].color,
@@ -63,7 +57,6 @@ const AnnualReturnsChart = ({ portfolios }) => {
           fontWeight: 'bold'
         }
       },
-      // Adjust the zIndex to ensure plotLines appear above other chart elements
       zIndex: 3
     };
   }).filter(line => line !== null); // Remove null entries
@@ -77,6 +70,7 @@ const AnnualReturnsChart = ({ portfolios }) => {
     },
     title: {
       text: 'Annual Returns Comparison with CAGR',
+      align: 'left',
       style: {
         fontSize: '20px',
         fontWeight: 'bold'
@@ -114,12 +108,6 @@ const AnnualReturnsChart = ({ portfolios }) => {
         this.points.forEach(point => {
           tooltip += `<span style="color:${point.series.color}">\u25CF</span> ${point.series.name}: <b>${point.y !== null ? point.y.toFixed(2) + '%' : 'N/A'}</b><br/>`;
         });
-        // Add CAGR lines to tooltip
-        plotLines.forEach(line => {
-          if (line.value !== null) {
-            tooltip += `<span style="color:${line.color}">\u2014</span> ${line.label.text}<br/>`;
-          }
-        });
         return tooltip;
       },
       style: {
@@ -155,19 +143,6 @@ const AnnualReturnsChart = ({ portfolios }) => {
         options={options}
         containerProps={{ style: { height: '600px', width: '100%' } }}
       />
-      {/* Optionally, display CAGR information below the chart */}
-      {/* <div className="mt-4">
-        {portfolios.map((portfolio, index) => {
-          const cagr = portfolio.result?.additional_risk_return_metrics?.['Annualized Return (CAGR)']
-            ? parseFloat((portfolio.result.additional_risk_return_metrics['Annualized Return (CAGR)'] * 100).toFixed(2))
-            : null;
-          return (
-            <div key={portfolio.portfolio_name || `portfolio-${index}`} className="mb-2">
-              <strong>{portfolio.portfolio_name || `Portfolio ${index + 1}`}</strong> - CAGR: {cagr !== null ? `${cagr.toFixed(2)}%` : 'N/A'}
-            </div>
-          );
-        })} */}
-      {/* </div> */}
     </div>
   );
 };

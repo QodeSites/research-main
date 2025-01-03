@@ -2,67 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Card, Table } from 'react-bootstrap';
 
-const TrailingReturnsTable = ({ portfolios, separateTables = false }) => {
+const TrailingReturnsTable = ({ portfolios }) => {
   const periods = ['10d', '1w', '1m', '3m', '6m', '1y', '3y', '5y'];
 
-  if (separateTables) {
-    return (
-      <div className="d-flex flex-column gap-4">
-        {portfolios.map((portfolio, portfolioIndex) => (
-          <Card key={portfolioIndex} className="shadow-sm">
-            <Card.Header>
-              <h5 className="mb-0">
-                {portfolio.portfolio_name || `Portfolio ${portfolio.portfolio_index}`} - Trailing Returns
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <Table 
-                striped 
-                bordered 
-                hover 
-                responsive 
-                className="align-middle text-start mb-0"
-              >
-                <thead>
-                  <tr>
-                    {periods.map(period => (
-                      <th key={period} className="text-center">
-                        {period.toUpperCase()}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    {periods.map(period => {
-                      const value = portfolio.result?.trailing_returns?.[period];
-                      const formattedValue = value != null ? `${value.toFixed(2)}%` : 'N/A';
-                      
-                      return (
-                        <td 
-                          key={period} 
-                          className="text-center"
-                          style={{
-                            color: value > 0 ? '#198754' : 
-                                   value < 0 ? '#dc3545' : 
-                                   'inherit'
-                          }}
-                        >
-                          {formattedValue}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  // Combined table implementation
   return (
     <Card className="shadow-sm">
       <Card.Header>
@@ -95,7 +37,7 @@ const TrailingReturnsTable = ({ portfolios, separateTables = false }) => {
                 {periods.map(period => {
                   const value = portfolio.result?.trailing_returns?.[period];
                   const formattedValue = value != null ? `${value.toFixed(2)}%` : 'N/A';
-                  
+
                   return (
                     <td 
                       key={period} 
@@ -128,8 +70,7 @@ TrailingReturnsTable.propTypes = {
         trailing_returns: PropTypes.object
       }),
     })
-  ).isRequired,
-  separateTables: PropTypes.bool
+  ).isRequired
 };
 
 export default TrailingReturnsTable;

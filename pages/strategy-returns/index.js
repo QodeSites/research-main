@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Table, Spinner, Alert, Button, Form } from 'react-bootstrap';
+import { Container, Table, Spinner, Alert, Button } from 'react-bootstrap';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { ArrowUp, ArrowDown } from 'lucide-react';
@@ -10,8 +10,6 @@ const IndicesPage = () => {
     const [dataAsOf, setDataAsOf] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [startDate, setStartDate] = useState(null);
-    const [endDate, setEndDate] = useState(null);
 
     // Sorting state
     const [sortConfig, setSortConfig] = useState({
@@ -19,84 +17,118 @@ const IndicesPage = () => {
         direction: 'ascending'
     });
 
-    const handleSetStartDate = (e) => {
-        setStartDate(e.target.value);
-    }
-
-    const handleSetEndDate = (e) => {
-        setEndDate(e.target.value);
-    }
-
     // Define the indices for each category in the desired order
+    const qodeStrategyIndices = [
+        'QAW',
+        'QTF',
+        'QGF',
+        'QFH'
+    ];
+
     const broadBasedIndices = [
         'NIFTY 50',
-        'NIFTY 500',
-        'NIFTY NEXT 50',
+        'BSE 500',
         'NIFTY MIDCAP 100',
-        'NIFTY SMLCAP 250',
-        'NIFTY MICROCAP250'
+        'NIFTY SMALLCAP 250',
+        'NIFTY MICROCAP 250'
+    ];
+
+    const strategyIndices = [
+        'NSE 500 Momentum 50',
+        'NSE 150 Midcap Momentum 50',
+        'NSE 100 Low Volatility 30',
+        'Gold ETF'
     ];
 
     const sectoralIndices = [
-        'NIFTY BANK',
         'NIFTY AUTO',
-        'NIFTY FINANCIAL SVC',
-        'NIFTY FMCG',
-        'NIFTY IT',
-        'NIFTY MEDIA',
-        'NIFTY METAL',
-        'NIFTY PHARMA',
-        'NIFTY PSU BANK',
-        'NIFTY PVT BANK',
-        'NIFTY REALTY',
-        'NIFTY HEALTHCARE',
-        'NIFTY CONSR DURBL',
-        'NIFTY NIFTY OIL AND GAS',
+        'NIFTY BANK',
         'NIFTY COMMODITIES',
+        'NIFTY CONSR DURBL',
         'NIFTY CONSUMPTION',
         'NIFTY CPSE',
         'NIFTY ENERGY',
+        'NIFTY FMCG',
+        'NIFTY HEALTHCARE',
         'NIFTY INFRA',
-        'NIFTY PSE'
+        'NIFTY IT',
+        'NIFTY MEDIA',
+        'NIFTY METAL',
+        'NIFTY MNC',
+        'NIFTY PHARMA',
+        'NIFTY PSU BANK',
+        'NIFTY PVT BANK',
+        'NIFTY REALTY'
     ];
 
-    // Segregate indices into Broad Based and Sectoral maintaining the specified order
-    const segregateIndices = (data) => {
-        const broadBased = {};
-        const sectoral = {};
+    // Segregate indices into categories maintaining the specified order
+    const segregateIndices = (data = {}) => {
+        const createDefaultReturns = () => ({
+            '1M': '-',
+            '3M': '-',
+            '6M': '-',
+            '1Y': '-',
+            'Drawdown': '-'
+        });
+
+        const segregated = {
+            qodeStrategies: {},
+            broadBased: {},
+            strategy: {},
+            sectoral: {}
+        };
+
+        // Populate with all indices first, with default values
+        qodeStrategyIndices.forEach(index => {
+            segregated.qodeStrategies[index] = createDefaultReturns();
+        });
 
         broadBasedIndices.forEach(index => {
-            if (data[index]) {
-                broadBased[index] = data[index];
-            }
+            segregated.broadBased[index] = createDefaultReturns();
+        });
+
+        strategyIndices.forEach(index => {
+            segregated.strategy[index] = createDefaultReturns();
         });
 
         sectoralIndices.forEach(index => {
-            if (data[index]) {
-                sectoral[index] = data[index];
-            }
+            segregated.sectoral[index] = createDefaultReturns();
         });
 
-        return { broadBased, sectoral };
+        // Override with actual data where available
+        if (data) {
+            Object.entries(data).forEach(([index, returns]) => {
+                const processedReturns = {
+                    '1M': returns['1M'] || '-',
+                    '3M': returns['3M'] || '-',
+                    '6M': returns['6M'] || '-',
+                    '1Y': returns['1Y'] || '-',
+                    'Drawdown': returns['Drawdown'] || '-'
+                };
+
+                if (qodeStrategyIndices.includes(index)) {
+                    segregated.qodeStrategies[index] = processedReturns;
+                } else if (broadBasedIndices.includes(index)) {
+                    segregated.broadBased[index] = processedReturns;
+                } else if (strategyIndices.includes(index)) {
+                    segregated.strategy[index] = processedReturns;
+                } else if (sectoralIndices.includes(index)) {
+                    segregated.sectoral[index] = processedReturns;
+                }
+            });
+        }
+
+        return segregated;
     };
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/indices', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ startDate, endDate })
-            });
+            const response = await fetch('/api/indices');
             const result = await response.json();
 
             if (response.ok) {
-                // Set the data without shuffling to maintain order
                 setIndicesData(result.data);
-
-                // Set the "Data as of" date
                 setDataAsOf(result.dataAsOf || new Date().toISOString());
             } else {
                 setError(result.message || 'Failed to fetch data');
@@ -112,185 +144,43 @@ const IndicesPage = () => {
         fetchData();
     }, []);
 
-    const exportToExcel = () => {
-        // Create a new workbook
-        const workbook = XLSX.utils.book_new();
-
-        // Function to transform data for Excel
-        const transformData = (indices) => {
-            return Object.entries(indices).map(([index, returns]) => {
-                // Create a base object with standard returns
-                const excelRow = {
-                    Index: index,
-                    '10D Return': `${returns['10D']}%`,
-                    '1W Return': `${returns['1W']}%`,
-                    '1M Return': `${returns['1M']}%`,
-                    '3M Return': `${returns['3M']}%`,
-                    '6M Return': `${returns['6M']}%`,
-                    '9M Return': `${returns['9M']}%`,
-                    '1Y Return': `${returns['1Y']}%`
-                };
-
-                // Add Custom Return column if it exists
-                if (returns['Custom'] !== undefined) {
-                    excelRow['Custom Return'] = `${returns['Custom']}%`;
-                }
-
-                return excelRow;
-            });
-        };
-
-        // If no data, return early
-        if (!indicesData) return;
-
-        // Segregate indices
-        const { broadBased, sectoral } = segregateIndices(indicesData);
-
-        // Create worksheets
-        const broadBasedWorksheet = XLSX.utils.json_to_sheet(transformData(broadBased));
-        XLSX.utils.book_append_sheet(workbook, broadBasedWorksheet, 'Broad Based Indices');
-
-        const sectoralWorksheet = XLSX.utils.json_to_sheet(transformData(sectoral));
-        XLSX.utils.book_append_sheet(workbook, sectoralWorksheet, 'Sectoral Indices');
-
-        // Generate buffer
-        const workbookOut = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-        // Create a Blob from the buffer
-        const blob = new Blob([workbookOut], { type: 'application/octet-stream' });
-
-        // Trigger the download
-        saveAs(blob, 'IndicesReturns.xlsx');
-    };
-
-    // Function to handle sorting
-    const handleSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    // Function to sort indices
-    const sortIndices = (indices) => {
-        if (!sortConfig.key) return indices;
-
-        const sortedEntries = Object.entries(indices).sort((a, b) => {
-            const [indexA, returnsA] = a;
-            const [indexB, returnsB] = b;
-
-            // Special handling for Index column
-            if (sortConfig.key === 'Index') {
-                return sortConfig.direction === 'ascending'
-                    ? indexA.localeCompare(indexB)
-                    : indexB.localeCompare(indexA);
-            }
-
-            // Handle return columns
-            const key = sortConfig.key.replace(' Return', '');
-            const valueA = parseFloat(returnsA[key]);
-            const valueB = parseFloat(returnsB[key]);
-
-            if (valueA === valueB) return 0;
-
-            return sortConfig.direction === 'ascending'
-                ? valueA - valueB
-                : valueB - valueA;
-        });
-
-        return Object.fromEntries(sortedEntries);
-    };
-
     const renderIndicesTable = (indices, title) => {
-        // Apply sorting
-        const sortedIndices = sortIndices(indices);
-
-        // Sorting header rendering function
-        const renderSortHeader = (key, label) => {
-            return (
-                <th
-                    onClick={() => handleSort(key)}
-                    className="text-nowrap align-middle position-relative"
-                    style={{
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        paddingRight: '20px'
-                    }}
-                >
-                    {label}
-                    <div
-                        className="position-absolute"
-                        style={{
-                            right: '4px',
-                            top: '50%',
-                            transform: 'translateY(-50%)'
-                        }}
-                    >
-                        {sortConfig.key === key && (
-                            sortConfig.direction === 'ascending'
-                                ? <ArrowUp size={14} />
-                                : <ArrowDown size={14} />
-                        )}
-                    </div>
-                </th>
-            );
-        };
-
-        // Determine if we have a custom return column
-        const hasCustomReturn = Object.values(indices).some(returns => returns['Custom'] !== undefined);
-
         return (
             <>
                 <h3 className="my-3 text-primary">{title}</h3>
-                {/* Data As Of label */}
-                {dataAsOf && (
-                    <p className="text-muted">
-                        Data as of: {formatDate(dataAsOf)}
-                    </p>
-                )}
-                {/* Custom Date Range Display */}
-                {/* {startDate && endDate && (
-                    <p className="text-dark">
-                        Custom Period: {formatDate(startDate)} to {formatDate(endDate)}
-                    </p>
-                )} */}
+                {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
                 <Table striped bordered hover responsive>
                     <thead>
                         <tr>
-                            {renderSortHeader('Serial Number', 'S.No')}
-                            {renderSortHeader('Index', 'Index')}
-                            {renderSortHeader('1D Return', '1D Return')}
-                            {renderSortHeader('2D Return', '2D Return')}
-                            {renderSortHeader('3D Return', '3D Return')}
-                            {renderSortHeader('10D Return', '10D Return')}
-                            {renderSortHeader('1W Return', '1W Return')}
-                            {renderSortHeader('1M Return', '1M Return')}
-                            {renderSortHeader('3M Return', '3M Return')}
-                            {renderSortHeader('6M Return', '6M Return')}
-                            {renderSortHeader('9M Return', '9M Return')}
-                            {renderSortHeader('1Y Return', '1Y Return')}
-                            {renderSortHeader('Drawdown', 'Drawdown')}
-                            {/* {hasCustomReturn && renderSortHeader('Custom Return', 'Custom Return')} */}
+                            <th>S.No</th>
+                            <th>Index</th>
+                            <th>1M Return</th>
+                            <th>3M Return</th>
+                            <th>6M Return</th>
+                            <th>1Y Return</th>
+                            <th>Drawdown</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {Object.entries(sortedIndices).map(([index, returns], idx) => (
+                        {Object.entries(indices).map(([index, returns], idx) => (
                             <tr key={index}>
-                                <td>{idx + 1}</td> {/* Serial number linked to sorted indices */}
+                                <td>{idx + 1}</td>
                                 <td>{index}</td>
-                                <td>{returns['1D']}%</td>
-                                <td>{returns['2D']}%</td>
-                                <td>{returns['3D']}%</td>
-                                <td>{returns['10D']}%</td>
-                                <td>{returns['1W']}%</td>
-                                <td>{returns['1M']}%</td>
-                                <td>{returns['3M']}%</td>
-                                <td>{returns['6M']}%</td>
-                                <td>{returns['9M']}%</td>
-                                <td>{returns['1Y']}%</td>
-                                <td>{returns['Drawdown']}%</td>
-                                {hasCustomReturn && <td>{returns['Custom'] !== undefined ? `${returns['Custom']}%` : '-'}</td>}
+                                <td className={returns['1M'] !== '-' && parseFloat(returns['1M']) < 0 ? 'text-danger' : ''}>
+                                    {returns['1M']}{returns['1M'] !== '-' ? '%' : ''}
+                                </td>
+                                <td className={returns['3M'] !== '-' && parseFloat(returns['3M']) < 0 ? 'text-danger' : ''}>
+                                    {returns['3M']}{returns['3M'] !== '-' ? '%' : ''}
+                                </td>
+                                <td className={returns['6M'] !== '-' && parseFloat(returns['6M']) < 0 ? 'text-danger' : ''}>
+                                    {returns['6M']}{returns['6M'] !== '-' ? '%' : ''}
+                                </td>
+                                <td className={returns['1Y'] !== '-' && parseFloat(returns['1Y']) < 0 ? 'text-danger' : ''}>
+                                    {returns['1Y']}{returns['1Y'] !== '-' ? '%' : ''}
+                                </td>
+                                <td className="text-danger">
+                                    {returns['Drawdown']}{returns['Drawdown'] !== '-' ? '%' : ''}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -298,7 +188,6 @@ const IndicesPage = () => {
             </>
         );
     };
-
 
     if (loading) {
         return (
@@ -316,44 +205,15 @@ const IndicesPage = () => {
         );
     }
 
-    // Segregate indices
-    const { broadBased, sectoral } = segregateIndices(indicesData);
+    const { qodeStrategies, broadBased, strategy, sectoral } = segregateIndices(indicesData);
 
     return (
         <div className="p-4">
-            <div className='d-flex justify-content-between align-items-centre'>
-                <h1 className="mb-4">Indices Returns</h1>
+            <h1 className="mb-4">Indices Returns</h1>
 
-            </div>
-
-            {/* <div className='d-flex gap-2 mb-3'>
-                <div className='d-flex gap-2 mb-3'>
-                    <input
-                        type='date'
-                        className='form-control'
-                        onChange={(e) => handleSetStartDate(e)}
-                        placeholder='Select Start Date'
-                    />
-                    <input
-                        type='date'
-                        className='form-control'
-                        onChange={(e) => handleSetEndDate(e)}
-                        placeholder='Select End Date'
-                    />
-                    <Button onClick={() => fetchData()} variant="primary">Submit</Button>
-                </div>
-
-                <div className="d-flex justify-content-end mb-3">
-                    <Button className='btn-sm' variant="success" onClick={exportToExcel}>
-                        Export to Excel
-                    </Button>
-                </div>
-            </div> */}
-
-            {/* Broad Based Indices */}
+            {renderIndicesTable(qodeStrategies, 'Qode Strategies')}
             {renderIndicesTable(broadBased, 'Broad Based Indices')}
-
-            {/* Sectoral Indices */}
+            {renderIndicesTable(strategy, 'Strategy Indices')}
             {renderIndicesTable(sectoral, 'Sectoral Indices')}
         </div>
     );

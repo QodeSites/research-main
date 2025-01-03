@@ -24,24 +24,32 @@ const AnnualMetricsTable = ({ portfolios }) => {
   ).sort((a, b) => a - b); // Sort years in ascending order
 
   return (
-    <Card className="mb-4 shadow-sm">
+    <Card className="shadow-sm">
+      <Card.Header>
+        <h5 className="mb-0">Annual Metrics Analysis</h5>
+      </Card.Header>
       <Card.Body>
-        <h3 className="text-lg font-semibold mb-4">Annual Metrics Analysis</h3>
-        <Table striped bordered hover>
+        <Table 
+          striped 
+          bordered 
+          hover 
+          responsive 
+          className="align-middle text-start mb-0"
+        >
           <thead>
             <tr>
-              <th rowSpan={2}>Year</th>
+              <th rowSpan={2} className="text-center align-middle">Year</th>
               {portfolios.map((portfolio, index) => (
                 <th key={index} colSpan={2} className="text-center">
-                  {portfolio.portfolio_name}
+                  {portfolio.portfolio_name || `Portfolio ${index + 1}`}
                 </th>
               ))}
             </tr>
             <tr>
               {portfolios.map((_, index) => (
                 <React.Fragment key={index}>
-                  <th className="text-end">Return (%)</th>
-                  <th className="text-end">Balance</th>
+                  <th className="text-center">Return (%)</th>
+                  <th className="text-center">Balance</th>
                 </React.Fragment>
               ))}
             </tr>
@@ -49,21 +57,32 @@ const AnnualMetricsTable = ({ portfolios }) => {
           <tbody>
             {allYears.map((year) => (
               <tr key={year}>
-                <td>{year}</td>
+                <td className="text-center">{year}</td>
                 {allMetrics.map((metrics, index) => {
                   const yearMetric = metrics.find((metric) => metric.year === year);
                   return yearMetric ? (
                     <React.Fragment key={index}>
-                      <td className="text-end">{yearMetric.return.toFixed(2)}</td>
-                      <td className="text-end">{yearMetric.balance.toLocaleString('en-IN', {
-                        style: 'currency',
-                        currency: 'INR',
-                      })}</td>
+                      <td 
+                        className="text-center" 
+                        style={{
+                          color: yearMetric.return > 0 ? '#198754' : 
+                                 yearMetric.return < 0 ? '#dc3545' : 
+                                 'inherit',
+                        }}
+                      >
+                        {yearMetric.return.toFixed(2)}
+                      </td>
+                      <td className="text-center">
+                        {yearMetric.balance.toLocaleString('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                        })}
+                      </td>
                     </React.Fragment>
                   ) : (
                     <React.Fragment key={index}>
-                      <td className="text-end">-</td>
-                      <td className="text-end">-</td>
+                      <td className="text-center">N/A</td>
+                      <td className="text-center">N/A</td>
                     </React.Fragment>
                   );
                 })}

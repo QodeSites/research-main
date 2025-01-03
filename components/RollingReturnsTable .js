@@ -25,7 +25,7 @@ const calculateRollingStatistics = (equityData, windowYears) => {
 };
 
 const RollingReturnsTable = ({ portfolios }) => {
-  const periods = [1, 3, 5, 7, 10, 15]; // Rolling periods in years
+  const periods = [1, 3, 5, 7]; // Rolling periods in years
 
   const calculatePortfolioStats = (portfolio) => {
     const stats = {};
@@ -39,25 +39,33 @@ const RollingReturnsTable = ({ portfolios }) => {
   const allStats = portfolios.map((portfolio) => calculatePortfolioStats(portfolio));
 
   return (
-    <Card className="mb-4 shadow-sm">
+    <Card className="shadow-sm">
+      <Card.Header>
+        <h5 className="mb-0">Rolling Returns Analysis</h5>
+      </Card.Header>
       <Card.Body>
-        <h3 className="text-lg font-semibold mb-4">Rolling Returns Analysis</h3>
-        <Table striped bordered hover>
+        <Table
+          striped
+          bordered
+          hover
+          responsive
+          className="align-middle text-start mb-0"
+        >
           <thead>
             <tr>
-              <th rowSpan={2}>Period (Years)</th>
+              <th rowSpan={2} className="text-center align-middle">Period (Years)</th>
               {portfolios.map((portfolio, index) => (
                 <th key={index} colSpan={3} className="text-center">
-                  {portfolio.portfolio_name}
+                  {portfolio.portfolio_name || `Portfolio ${index + 1}`}
                 </th>
               ))}
             </tr>
             <tr>
               {portfolios.map((_, index) => (
                 <React.Fragment key={index}>
-                  <th className="text-end">Average (%)</th>
-                  <th className="text-end">High (%)</th>
-                  <th className="text-end">Low (%)</th>
+                  <th className="text-center">Average (%)</th>
+                  <th className="text-center">High (%)</th>
+                  <th className="text-center">Low (%)</th>
                 </React.Fragment>
               ))}
             </tr>
@@ -65,20 +73,26 @@ const RollingReturnsTable = ({ portfolios }) => {
           <tbody>
             {periods.map((period) => (
               <tr key={period}>
-                <td>{period}</td>
+                <td className="text-center">{period}</td>
                 {allStats.map((stats, index) => {
                   const periodStats = stats[period];
                   return periodStats ? (
                     <React.Fragment key={index}>
-                      <td className="text-end">{periodStats.average.toFixed(2)}</td>
-                      <td className="text-end">{periodStats.high.toFixed(2)}</td>
-                      <td className="text-end">{periodStats.low.toFixed(2)}</td>
+                      <td className="text-center" style={{ color: periodStats.average > 0 ? '#198754' : '#dc3545' }}>
+                        {periodStats.average.toFixed(2)}
+                      </td>
+                      <td className="text-center" style={{ color: periodStats.high > 0 ? '#198754' : '#dc3545' }}>
+                        {periodStats.high.toFixed(2)}
+                      </td>
+                      <td className="text-center" style={{ color: periodStats.low > 0 ? '#198754' : '#dc3545' }}>
+                        {periodStats.low.toFixed(2)}
+                      </td>
                     </React.Fragment>
                   ) : (
                     <React.Fragment key={index}>
-                      <td className="text-end">-</td>
-                      <td className="text-end">-</td>
-                      <td className="text-end">-</td>
+                      <td className="text-center">N/A</td>
+                      <td className="text-center">N/A</td>
+                      <td className="text-center">N/A</td>
                     </React.Fragment>
                   );
                 })}

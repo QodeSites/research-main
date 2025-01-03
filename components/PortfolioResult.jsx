@@ -42,63 +42,25 @@ const riskReturnMetrics = [
 ];
 
 
-// --------------------- Rolling Returns ---------------------
-const calculateRollingReturns = (equityData, window) => {
-  if (!equityData || equityData.length < window) return [];
-  const rollingReturns = [];
-
-  for (let i = window; i < equityData.length; i++) {
-    const currentNAV = equityData[i].NAV;
-    const pastNAV = equityData[i - window].NAV;
-    const return_ = (currentNAV / pastNAV - 1) * 100; // as a percent
-
-    // Parse the date correctly
-    const [day, month, year] = equityData[i].date.split("-");
-    const dateUTC = Date.UTC(+year, +month - 1, +day);
-
-    rollingReturns.push({
-      date: dateUTC,
-      return: return_,
-    });
-  }
-  return rollingReturns;
-};
-
-// --------------------- Trailing Returns ---------------------
-const calculateTrailingReturns = (equityData, periods) => {
-  if (!equityData?.length) return [];
-
-  const lastIndex = equityData.length - 1;
-  const lastDate = new Date(equityData[lastIndex].date);
-
-  return periods.map((period) => {
-    const daysAgo = period * 365;
-
-    const startIndex = equityData.findIndex((point) => {
-      const pointDate = new Date(point.date);
-      const diffDays = (lastDate - pointDate) / (1000 * 60 * 60 * 24);
-      return diffDays <= daysAgo;
-    });
-
-    if (startIndex === -1) return null; // Not enough data
-
-    const startNAV = equityData[startIndex].NAV;
-    const endNAV = equityData[lastIndex].NAV;
-    // Annualized return
-    const return_ = ((endNAV / startNAV) ** (1 / period) - 1) * 100;
-
-    return {
-      period: `${period}Y`,
-      return: return_,
-    };
-  });
-};
 
 // ====================== Main Component ======================
 function CombinedPortfolioResults({ portfolios }) {
   console.log("CombinedPortfolioResults -> portfolios", portfolios);
-  
+
   // --------------------- NAV Chart Options ---------------------
+  const COLORS = [
+    "#4682B4", // Steel Blue
+    "#20B2AA", // Light Sea Green
+    "#87CEEB", // Sky Blue
+    "#66CDAA", // Medium Aquamarine
+    "#6495ED", // Cornflower Blue
+    "#8FBC8F", // Dark Sea Green
+    "#B0C4DE", // Light Steel Blue
+    "#98FB98", // Pale Green
+    "#87CEFA", // Light Sky Blue
+    "#90EE90", // Light Green
+  ];
+
   const [navChartOptions, setNavChartOptions] = useState({
     title: {
       text: "Portfolio NAV",
@@ -166,10 +128,10 @@ function CombinedPortfolioResults({ portfolios }) {
         animation: { duration: 1500 },
       },
     },
-    series: [],
+    colors: COLORS, // Add the colors array here
+    series: [], // Series will be dynamically set
     credits: { enabled: false },
   });
-
   // --------------------- Drawdown Chart Options ---------------------
   const [drawdownChartOptions, setDrawdownChartOptions] = useState({
     title: {
@@ -248,15 +210,7 @@ function CombinedPortfolioResults({ portfolios }) {
     credits: { enabled: false },
   });
 
-  // --------------------- Rolling Returns Chart ---------------------
-  const [rollingReturnsOptions, setRollingReturnsOptions] = useState({});
 
-  // --------------------- Trailing Returns Chart ---------------------
-  const [trailingReturnsOptions, setTrailingReturnsOptions] = useState({});
-
-  // =================================================================
-  //  Build Chart Data in useEffect when portfolios changes
-  // =================================================================
   useEffect(() => {
     if (!portfolios?.length) return;
 
@@ -311,171 +265,28 @@ function CombinedPortfolioResults({ portfolios }) {
       series: drawdownSeries,
     }));
 
-    // =========== (C) Rolling Returns Chart (1Y) ===========
-    const rollingReturnsSeries = portfolios
-      .map((portfolio, index) => {
-        const eqData = portfolio.result?.equity_curve_data || [];
-        const rolling1Y = calculateRollingReturns(eqData, 252); // ~252 trading days
-
-        return {
-          name: `${portfolio.portfolio_name} - 1Y Rolling`,
-          data: rolling1Y.map((pt) => [pt.date, pt.return]),
-          color: `hsl(${(index * 120) % 360}, 70%, 50%)`,
-        };
-      })
-      .filter((series) => series.data.length > 0);
-
-    setRollingReturnsOptions({
-      title: {
-        text: "Rolling Returns (1 Year)",
-        style: { fontSize: "18px" },
-      },
-      chart: {
-        type: "line",
-        height: 400,
-        backgroundColor: "white",
-        spacingRight: 15,
-        spacingLeft: 15,
-        spacingBottom: 15,
-        spacingTop: 15,
-        style: {
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        },
-        zoomType: "x",
-      },
-      xAxis: {
-        type: "datetime",
-        labels: {
-          formatter: function () {
-            return Highcharts.dateFormat("%Y-%m-%d", this.value);
-          },
-          style: { fontSize: "12px" },
-        },
-      },
-      yAxis: {
-        title: {
-          text: "Return (%)",
-          style: { fontSize: "14px" },
-        },
-        labels: {
-          format: "{value:.1f}%",
-          style: { fontSize: "12px" },
-        },
-      },
-      tooltip: {
-        shared: true,
-        crosshairs: true,
-        formatter: function () {
-          let tooltipHtml = `<b>${Highcharts.dateFormat("%Y-%m-%d", this.x)}</b><br/>`;
-          this.points.forEach((point) => {
-            tooltipHtml += `<span style="color:${point.series.color}">\u25CF</span> ${point.series.name
-              }: <b>${point.y.toFixed(2)}%</b><br/>`;
-          });
-          return tooltipHtml;
-        },
-      },
-      legend: {
-        enabled: true,
-        itemStyle: { fontSize: "12px" },
-      },
-      plotOptions: {
-        series: {
-          lineWidth: 2,
-          animation: { duration: 1500 },
-        },
-      },
-      series: rollingReturnsSeries,
-      credits: { enabled: false },
-    });
-
-    // =========== (D) Trailing Returns Chart ===========
-    // Example periods: 1, 3, 5, 10 years
-    const periods = [1, 3, 5, 10];
-    const trailingReturnsSeries = portfolios.map((portfolio, index) => {
-      const eqData = portfolio.result?.equity_curve_data || [];
-      const trailing = calculateTrailingReturns(eqData, periods);
-      return {
-        name: `${portfolio.portfolio_name}`,
-        data: trailing.map((tr) => (tr ? tr.return : null)),
-        color: `hsl(${(index * 120) % 360}, 70%, 50%)`,
-        type: "column",
-      };
-    });
-
-    setTrailingReturnsOptions({
-      title: { text: "Trailing Returns", style: { fontSize: "18px" } },
-      chart: {
-        type: "column",
-        height: 400,
-        backgroundColor: "white",
-        spacingRight: 15,
-        spacingLeft: 15,
-        spacingBottom: 15,
-        spacingTop: 15,
-        style: {
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        },
-      },
-      xAxis: {
-        categories: periods.map((p) => `${p}Y`),
-        labels: { style: { fontSize: "12px" } },
-      },
-      yAxis: {
-        title: {
-          text: "Return (%)",
-          style: { fontSize: "14px" },
-        },
-        labels: {
-          format: "{value:.1f}%",
-          style: { fontSize: "12px" },
-        },
-      },
-      tooltip: {
-        shared: true,
-        valueDecimals: 2,
-        valueSuffix: "%",
-      },
-      legend: {
-        itemStyle: { fontSize: "12px" },
-      },
-      plotOptions: {
-        series: {
-          groupPadding: 0.1,
-          borderWidth: 0,
-          animation: { duration: 1500 },
-        },
-      },
-      series: trailingReturnsSeries,
-      credits: { enabled: false },
-    });
   }, [portfolios]);
 
-  // =================================================================
-  // Table / Utility functions
-  // =================================================================
   const renderMetricsComparison = () => {
     if (!portfolios?.length) return null;
     return (
-      <Card className="mb-4 shadow-sm">
-      <Card.Header>
-      <h5 className="mb-3">Performance Metrics Comparison</h5>
-
-      </Card.Header>
-      <Card.Body>
+      <Card className="shadow-sm">
+        <Card.Header>
+          <h5 className="mb-0">Performance Metrics Comparison</h5>
+        </Card.Header>
+        <Card.Body>
           <Table
             striped
             bordered
             hover
             responsive
-            className="align-middle text-start"
+            className="align-middle text-start mb-0"
           >
             <thead>
               <tr>
-                <th>Metric</th>
+                <th className="text-center align-middle">Metric</th>
                 {portfolios.map((p, idx) => (
-                  <th key={idx}>{p.portfolio_name}</th>
+                  <th key={idx} className="text-center">{p.portfolio_name || `Portfolio ${idx + 1}`}</th>
                 ))}
               </tr>
             </thead>
@@ -489,9 +300,19 @@ function CombinedPortfolioResults({ portfolios }) {
                 { key: "max_loss", label: "Max Loss/Day (%)" },
               ].map((metric) => (
                 <tr key={metric.key}>
-                  <td>{metric.label}</td>
+                  <td className="text-start">{metric.label}</td>
                   {portfolios.map((portfolio, idx) => (
-                    <td key={idx}>
+                    <td
+                      key={idx}
+                      className="text-center"
+                      style={{
+                        color: portfolio.result?.[metric.key] > 0
+                          ? '#198754'
+                          : portfolio.result?.[metric.key] < 0
+                            ? '#dc3545'
+                            : 'inherit',
+                      }}
+                    >
                       {portfolio.result?.[metric.key]?.toFixed(1) || "N/A"}
                     </td>
                   ))}
@@ -504,53 +325,63 @@ function CombinedPortfolioResults({ portfolios }) {
     );
   };
 
+
   const renderDrawdownsComparison = () => {
     if (!portfolios?.length) return null;
     return (
       <Row className="mt-4">
         {portfolios.map((portfolio, portfolioIndex) => (
-          <Col md={6} key={portfolioIndex} className="mb-5">
-            <h5 className="mb-3">{portfolio.portfolio_name} - Top Drawdowns</h5>
-            <Table
-              striped
-              bordered
-              hover
-              responsive
-              size="sm"
-              className="align-middle text-start"
-            >
-              <thead>
-                <tr>
-                  <th>DD (%)</th>
-                  <th>Peak</th>
-                  <th>Bottom</th>
-                  <th>Recovery</th>
-                  <th>Days</th>
-                </tr>
-              </thead>
-              <tbody>
-                {portfolio.result?.top_10_worst_drawdowns
-                  ?.slice(0, 5)
-                  .map((dd, idx) => (
-                    <tr key={idx}>
-                      <td>{dd.Drawdown.toFixed(1)}</td>
-                      <td>{dd.Peak_date}</td>
-                      <td>{dd.Drawdown_date}</td>
-                      <td>{dd.Recovery_date}</td>
-                      <td>
-                        {dd.Recovery_date !== "Not Recovered"
-                          ? calculateDaysBetween(dd.Peak_date, dd.Recovery_date)
-                          : "N/A"}
-                      </td>
+          <Col md={6} key={portfolioIndex} className="mb-4">
+            <Card className="shadow-sm">
+              <Card.Header>
+                <h5 className="mb-0">{portfolio.portfolio_name || `Portfolio ${portfolioIndex + 1}`} - Top Drawdowns</h5>
+              </Card.Header>
+              <Card.Body>
+                <Table
+                  striped
+                  bordered
+                  hover
+                  responsive
+                  size="sm"
+                  className="align-middle text-start mb-0"
+                >
+                  <thead>
+                    <tr>
+                      <th className="text-center">DD (%)</th>
+                      <th className="text-center">Peak</th>
+                      <th className="text-center">Bottom</th>
+                      <th className="text-center">Recovery</th>
+                      <th className="text-center">Days</th>
                     </tr>
-                  ))}
-              </tbody>
-            </Table>
+                  </thead>
+                  <tbody>
+                    {portfolio.result?.top_10_worst_drawdowns
+                      ?.slice(0, 5)
+                      .map((dd, idx) => (
+                        <tr key={idx}>
+                          <td className="text-center" style={{ color: dd.Drawdown < 0 ? '#dc3545' : 'inherit' }}>
+                            {dd.Drawdown.toFixed(1)}
+                          </td>
+                          <td className="text-center">{dd.Peak_date}</td>
+                          <td className="text-center">{dd.Drawdown_date}</td>
+                          <td className="text-center">{dd.Recovery_date}</td>
+                          <td className="text-center">
+                            {dd.Recovery_date !== "Not Recovered"
+                              ? calculateDaysBetween(dd.Peak_date, dd.Recovery_date)
+                              : "N/A"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </Table>
+              </Card.Body>
+            </Card>
           </Col>
         ))}
       </Row>
     );
   };
+
 
   const handleDownloadReport = (portfolioIndex) => {
     const portfolio = portfolios[portfolioIndex];
@@ -686,6 +517,11 @@ function CombinedPortfolioResults({ portfolios }) {
         })}
       </Row>
 
+      <MetricsTable
+        title="Performance Summary"
+        metrics={performanceMetrics}
+      />
+
 
       {/* Charts Section */}
       <div className="mb-5">
@@ -705,41 +541,40 @@ function CombinedPortfolioResults({ portfolios }) {
             />
           </Card.Body>
         </Card>
-
         {/* Performance Metrics Comparison */}
-      <Card className="mb-5 shadow-sm">
-          <AnnualReturnsChart portfolios={portfolios} />
-      </Card>
-
-        {/* Rolling Returns Chart */}
         <Card className="mb-5 shadow-sm">
-          <Card.Body>
-            <RollingReturnsTable portfolios={portfolios} />
-          </Card.Body>
+          <AnnualReturnsChart portfolios={portfolios} />
         </Card>
-
-        {/* Trailing Returns Tables */}
         <div className="mb-5">
           <TrailingReturnsTable portfolios={portfolios} separateTables={true} />
         </div>
+        <div className="mb-5">
+          <RollingReturnsTable portfolios={portfolios} />
+        </div>
+        <MetricsTable
+          title="Risk and Return Metrics"
+          metrics={riskReturnMetrics}
+        />
+        <div className="mb-5">
+
+          <AnnualMetricsTable portfolios={portfolios} />
+        </div>
+
+
+
+
+        {/* Rolling Returns Chart */}
+
+
+        {/* Trailing Returns Tables */}
+
       </div>
 
-      
+
       {/* Metrics Tables */}
-      <Row className="mt-5">
-        <Col md={12} className="mb-4">
-          <MetricsTable
-            title="Performance Summary"
-            metrics={performanceMetrics}
-          />
-        </Col>
-        <Col md={12} className="mb-4">
-          <MetricsTable
-            title="Risk and Return Metrics"
-            metrics={riskReturnMetrics}
-          />
-        </Col>
-      </Row>
+
+
+
 
       <Row className="mt-5">
         <Col md={12} className="mb-4">{renderMetricsComparison()} </Col>
@@ -750,11 +585,7 @@ function CombinedPortfolioResults({ portfolios }) {
       <div className="mt-5">{renderDrawdownsComparison()}</div>
 
 
-      <Card className="mb-5 shadow-sm">
-          <Card.Body>
-            <AnnualMetricsTable portfolios={portfolios} />
-          </Card.Body>
-        </Card>
+
     </Container>
   );
 }
