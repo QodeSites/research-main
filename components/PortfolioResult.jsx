@@ -16,6 +16,8 @@ import AnnualReturnsChart from "./AnnualReturnsChart";
 import TrailingReturnsTable from "./TrailingReturnsTable";
 import RollingReturnsTable from "./RollingReturnsTable ";
 import AnnualMetricsTable from "./AnnualReturns";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,CartesianGrid } from "recharts";
+
 // --------------------- Metrics Arrays ---------------------
 const performanceMetrics = [
   { label: "Annualized Return (CAGR)", key: "Annualized Return (CAGR)" },
@@ -45,8 +47,6 @@ const riskReturnMetrics = [
 
 // ====================== Main Component ======================
 function CombinedPortfolioResults({ portfolios }) {
-  console.log("CombinedPortfolioResults -> portfolios", portfolios);
-
   // --------------------- NAV Chart Options ---------------------
   const COLORS = [
     "#4682B4", // Steel Blue
@@ -170,12 +170,7 @@ function CombinedPortfolioResults({ portfolios }) {
         text: "Drawdown (%)",
         style: { fontSize: "14px" },
       },
-      // just in case no data is present, fallback to -20
-      min: Math.min(
-        ...portfolios.flatMap((p) =>
-          p.result?.drawdown_data?.map((d) => d.Drawdown) || [-20]
-        )
-      ),
+      min: -50, // Set the y-axis limit to -50%
       labels: {
         style: { fontSize: "12px" },
         formatter: function () {
@@ -203,12 +198,94 @@ function CombinedPortfolioResults({ portfolios }) {
     plotOptions: {
       series: {
         lineWidth: 2,
+        dashStyle: "Solid",  // Ensure solid line
         animation: { duration: 1500 },
-      },
+        marker: {
+          enabled: false
+        },
+        states: {
+          hover: {
+            lineWidth: 2
+          }
+        }
+      }
     },
-    series: [],
+    series: [], // Data series will be dynamically updated
     credits: { enabled: false },
   });
+  
+
+  const renderRechartsDrawdownChart = (portfolios) => {
+    if (!portfolios?.length) return null;
+  
+    // Prepare the data for Recharts
+    const rechartsData = [];
+    portfolios.forEach((portfolio, index) => {
+      if (portfolio.result?.drawdown_data) {
+        portfolio.result.drawdown_data.forEach((point) => {
+          const [day, month, year] = point.date.split("-");
+          const date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+          if (!rechartsData.find((d) => d.date === date)) {
+            rechartsData.push({ date });
+          }
+          const dataPoint = rechartsData.find((d) => d.date === date);
+          dataPoint[`portfolio_${index + 1}`] = point.Drawdown;
+        });
+      }
+    });
+  
+    // Sort data by date
+    rechartsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+    return (
+      <Card className="mb-5 shadow-sm">
+        <Card.Header>
+          <h5 className="mb-0">Portfolio Drawdowns</h5>
+        </Card.Header>
+        <Card.Body>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={rechartsData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(tick) => {
+                  const date = new Date(tick);
+                  return `${date.toLocaleString("default", {
+                    month: "short",
+                  })} ${date.getFullYear()}`;
+                }}
+                style={{ fontSize: "12px" }}
+              />
+              <YAxis
+                domain={[-50, 0]}
+                tickFormatter={(value) => `${Math.abs(value).toFixed(1)}%`}
+                style={{ fontSize: "12px" }}
+              />
+              <Tooltip
+                formatter={(value) => `${Math.abs(value).toFixed(1)}%`}
+                labelFormatter={(label) => {
+                  const date = new Date(label);
+                  return date.toDateString();
+                }}
+              />
+              <Legend />
+              {portfolios.map((portfolio, index) => (
+                <Line
+                  key={index}
+                  type="monotone"
+                  dataKey={`portfolio_${index + 1}`}
+                  name={portfolio.portfolio_name || `Portfolio ${index + 1}`}
+                  stroke={`hsl(${(index * 120) % 360}, 70%, 35%)`}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </Card.Body>
+      </Card>
+    );
+  };
 
 
   useEffect(() => {
@@ -533,14 +610,10 @@ function CombinedPortfolioResults({ portfolios }) {
         </Card>
 
         {/* Drawdown Chart */}
-        <Card className="mb-5 shadow-sm">
-          <Card.Body>
-            <HighchartsReact
-              highcharts={Highcharts}
-              options={drawdownChartOptions}
-            />
-          </Card.Body>
-        </Card>
+        <Row className="mb-5">
+          {renderRechartsDrawdownChart(portfolios)}
+        </Row>
+
         {/* Performance Metrics Comparison */}
         <Card className="mb-5 shadow-sm">
           <AnnualReturnsChart portfolios={portfolios} />

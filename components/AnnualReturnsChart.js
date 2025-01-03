@@ -35,31 +35,7 @@ const AnnualReturnsChart = ({ portfolios }) => {
     };
   });
 
-  // Step 3: Prepare plotLines for CAGR of each portfolio
-  const plotLines = portfolios.map((portfolio, index) => {
-    const cagr = portfolio.result?.additional_risk_return_metrics?.['Annualized Return (CAGR)']
-      ? parseFloat((portfolio.result.additional_risk_return_metrics['Annualized Return (CAGR)'] * 100).toFixed(2))
-      : null;
 
-    if (cagr === null) return null;
-
-    return {
-      color: series[index].color, // Match the color with the portfolio
-      dashStyle: 'Dash',
-      value: cagr,
-      width: 2,
-      label: {
-        text: `CAGR: ${cagr}%`,
-        align: 'right',
-        style: {
-          color: series[index].color,
-          fontSize: '12px',
-          fontWeight: 'bold'
-        }
-      },
-      zIndex: 3
-    };
-  }).filter(line => line !== null); // Remove null entries
 
   // Step 4: Define Highcharts options
   const options = {
@@ -97,7 +73,6 @@ const AnnualReturnsChart = ({ portfolios }) => {
         },
         style: { fontSize: '12px' }
       },
-      plotLines: plotLines
     },
     tooltip: {
       headerFormat: '<span style="font-size:10px">{point.key}</span><br/>',
