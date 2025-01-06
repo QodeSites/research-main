@@ -1,49 +1,90 @@
-// utils/calculateReturns.js
-
 export function calculateReturns(data, period) {
-    const currentValue = data[data.length - 1].nav;  // Latest nav value
+    if (!data || data.length === 0) return '-';
+    
+    const currentValue = data[data.length - 1].nav;
     let comparisonValue;
+    let daysToLookBack;
 
-    // Determine the comparison value based on the period
+    // Determine days to look back based on period
     switch (period) {
         case '1D':
-            comparisonValue = data[data.length - 2]?.nav;  // 1 day ago
+            daysToLookBack = 1;
             break;
         case '2D':
-            comparisonValue = data[data.length - 3]?.nav;  // 2 days ago
+            daysToLookBack = 2;
             break;
         case '3D':
-            comparisonValue = data[data.length - 4]?.nav;  // 3 days ago
-            break;
-        case '10D':
-            comparisonValue = data[data.length - 10]?.nav;  // 10 days ago
+            daysToLookBack = 3;
             break;
         case '1W':
-            comparisonValue = data[data.length - 7]?.nav;   // 7 days ago
+            daysToLookBack = 7;
             break;
         case '1M':
-            comparisonValue = data[data.length - 30]?.nav;  // 30 days ago
+            daysToLookBack = 30;
             break;
         case '3M':
-            comparisonValue = data[data.length - 90]?.nav;  // 90 days ago
+            daysToLookBack = 90;
             break;
         case '6M':
-            comparisonValue = data[data.length - 180]?.nav; // 180 days ago
+            daysToLookBack = 180;
             break;
         case '9M':
-            comparisonValue = data[data.length - 270]?.nav; // 270 days ago
+            daysToLookBack = 270;
             break;
         case '1Y':
-            comparisonValue = data[data.length - 365]?.nav; // 365 days ago
+            daysToLookBack = 365;
+            break;
+        case '2Y':
+            daysToLookBack = 730;
+            break;
+        case '3Y':
+            daysToLookBack = 1095;
+            break;
+        case '4Y':
+            daysToLookBack = 1460;
+            break;
+        case '5Y':
+            daysToLookBack = 1825;
             break;
         default:
-            comparisonValue = data[0]?.nav;  // Fallback to the first value
+            return '-';
     }
 
-    // If comparisonValue is undefined (e.g., not enough data), return 0
-    if (comparisonValue !== undefined) {
-        return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2); // Percentage change
+    // Find comparison value based on days to look back
+    const targetIndex = data.length - daysToLookBack - 1;
+    if (targetIndex >= 0) {
+        comparisonValue = data[targetIndex].nav;
+    } else if (data.length > 1) {
+        // If we don't have enough historical data, use the oldest available value
+        comparisonValue = data[0].nav;
+        // Adjust the actual time period for CAGR calculation
+        daysToLookBack = data.length - 1;
+    } else {
+        return '-';
     }
 
-    return 0;  // Return 0% if not enough data
+    if (comparisonValue && comparisonValue !== 0) {
+        const yearDiff = daysToLookBack / 365.25;
+        
+        // Use absolute returns for periods <= 1 year
+        if (yearDiff <= 1) {
+            return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
+        } else {
+            // Use CAGR for periods > 1 year
+            const cagr = (Math.pow(currentValue / comparisonValue, 1/yearDiff) - 1) * 100;
+            return cagr.toFixed(2);
+        }
+    }
+
+    return '-';
+}
+
+export function calculateDrawdown(data) {
+    if (!data || data.length === 0) return '-';
+
+    const peakNav = Math.max(...data.map(d => d.nav));
+    const currentNav = data[data.length - 1].nav;
+    const drawdown = ((currentNav - peakNav) / peakNav) * 100;
+    
+    return drawdown.toFixed(2);
 }

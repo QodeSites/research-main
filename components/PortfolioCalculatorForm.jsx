@@ -19,6 +19,7 @@ import PropTypes from 'prop-types';
 const STRATEGIES = [
   { label: "Qode All Weather", value: "QAW", group: "Qode Strategies" },
   { label: "Qode Growth Fund", value: "QGF", group: "Qode Strategies" },
+  { label: "Qode All Weather - 1", value: "QAW1", group: "Qode Strategies" },
   { label: "Qode Tactical Fund", value: "QVF", group: "Qode Strategies" },
   { label: "NSE Momentum Index", value: "NSE Momentum Index", group: "Index" },
   { label: "Gold Bees", value: "Gold Bees", group: "Index" },

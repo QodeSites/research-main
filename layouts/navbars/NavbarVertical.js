@@ -26,18 +26,24 @@ const NavbarVertical = (props) => {
         {/* Dashboard Menu */}
         <Accordion defaultActiveKey="0" as="ul" className="navbar-nav flex-column">
           <Card bsPrefix="nav-item">
-            <Link href="/strategy-drawdowns" className="nav-link">
+            <Link href="/returns-comparison" className="nav-link">
               <BarChart className="feather-icon" size={18} /> &nbsp;
-              Indices Drawdowns
+              Returns Comparison
             </Link>
           </Card>
-          
           <Card bsPrefix="nav-item">
             <Link href="/strategy-returns" className="nav-link">
                <TrendingUp className="feather-icon" size={18} />&nbsp;
               Indices Returns
             </Link>
           </Card>
+          <Card bsPrefix="nav-item">
+            <Link href="/strategy-drawdowns" className="nav-link">
+              <BarChart className="feather-icon" size={18} /> &nbsp;
+              Indices Drawdowns
+            </Link>
+          </Card>
+        
 
           <Card bsPrefix="nav-item">
             <Link href="/portfolio-visualiser" className="nav-link">
