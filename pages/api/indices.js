@@ -7,7 +7,7 @@ export default async function handler(req, res) {
         // Main data query for all returns
         const query = `
             SELECT indices, nav, date
-            FROM tblresearch
+            FROM tblresearch_new
             ORDER BY indices, date ASC;
         `;
 
@@ -15,16 +15,16 @@ export default async function handler(req, res) {
         const customDateQuery = startDate && endDate ? `
             SELECT t1.indices, t1.nav as start_nav, t1.date as start_date, 
                    t2.nav as end_nav, t2.date as end_date
-            FROM tblresearch t1
+            FROM tblresearch_new t1
             JOIN (
                 SELECT indices, nav, date,
                        ROW_NUMBER() OVER (PARTITION BY indices ORDER BY date DESC) as rn
-                FROM tblresearch
+                FROM tblresearch_new
                 WHERE date <= $2
             ) t2 ON t1.indices = t2.indices AND t2.rn = 1
             WHERE t1.date = (
                 SELECT MIN(date)
-                FROM tblresearch
+                FROM tblresearch_new
                 WHERE date >= $1
             );
         ` : null;
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         // Get latest date
         const dataAsOfQuery = `
             SELECT MAX(date) as latest_date
-            FROM tblresearch;
+            FROM tblresearch_new;
         `;
 
         // Execute queries

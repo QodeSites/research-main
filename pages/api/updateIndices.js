@@ -75,7 +75,7 @@ export default async function handler(req, res) {
 
                 // Execute the UPDATE query with direction
                 const result = await db.query(
-                    `INSERT INTO tblresearch (indices, nav, date, direction, net_change)
+                    `INSERT INTO tblresearch_new (indices, nav, date, direction, net_change)
                      VALUES ($1, $2, $3, $4, $5)
                      ON CONFLICT (indices, date)
                      DO UPDATE SET 

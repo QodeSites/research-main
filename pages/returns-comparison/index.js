@@ -14,16 +14,15 @@ const ReturnsComparisonPage = () => {
     const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
         'NIFTY 50',
-        'BSE 500',
+        'BSE500',
         'NIFTY MIDCAP 100',
-        'NIFTY SMALLCAP 250',
-        'NIFTY MICROCAP 250'
+        'NIFTY SMLCAP 250',
+        'NIFTY MICROCAP250'
     ];
     const strategyIndices = [
-        'NSE 500 Momentum 50',
-        'NSE 150 Midcap Momentum 50',
-        'NSE 100 Low Volatility 30',
-        'Gold ETF'
+        'NIFTYM150MOMNTM50',
+        'NIFTY100 LOWVOL30',
+        'GOLDBEES'
     ];
     const sectoralIndices = [
         'NIFTY AUTO',
