@@ -52,16 +52,13 @@ export function calculateReturns(data, period) {
 
     // Find comparison value based on days to look back
     const targetIndex = data.length - daysToLookBack - 1;
-    if (targetIndex >= 0) {
-        comparisonValue = data[targetIndex].nav;
-    } else if (data.length > 1) {
-        // If we don't have enough historical data, use the oldest available value
-        comparisonValue = data[0].nav;
-        // Adjust the actual time period for CAGR calculation
-        daysToLookBack = data.length - 1;
-    } else {
+    
+    // Check if we have enough data points for the requested period
+    if (targetIndex < 0) {
         return '-';
     }
+
+    comparisonValue = data[targetIndex].nav;
 
     if (comparisonValue && comparisonValue !== 0) {
         const yearDiff = daysToLookBack / 365.25;
@@ -78,6 +75,7 @@ export function calculateReturns(data, period) {
 
     return '-';
 }
+
 
 export function calculateDrawdown(data) {
     if (!data || data.length === 0) return '-';

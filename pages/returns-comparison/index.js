@@ -22,6 +22,7 @@ const ReturnsComparisonPage = () => {
     const strategyIndices = [
         'NIFTYM150MOMNTM50',
         'NIFTY100 LOWVOL30',
+        'NIFTY200MOMENTM30',
         'GOLDBEES'
     ];
     const sectoralIndices = [
