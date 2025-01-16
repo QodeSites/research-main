@@ -12,6 +12,12 @@ export const FileUpload = ({ onColumnsUpdate }) => {
   const [success, setSuccess] = useState(false);
   const fileInputRef = useRef(null);
 
+
+  // API endpoint configuration based on environment
+  const API_BASE_URL = process.env.NODE_ENV === 'production'
+    ? 'https://calculator.qodeinvest.com'
+    : 'http://192.168.0.106:5080';
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -49,7 +55,7 @@ export const FileUpload = ({ onColumnsUpdate }) => {
     try {
       // Use your custom axios instance instead of `axios.post`
       const uploadResponse = await app.post(
-        '/api/upload/upload_strategy',
+        `${API_BASE_URL}/api/upload/upload_strategy`,
         formData,
         {
           headers: {
@@ -105,7 +111,7 @@ export const FileUpload = ({ onColumnsUpdate }) => {
       </div>
       {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
       {success && <Alert variant="success" className="mb-3">Strategy uploaded successfully!</Alert>}
-      <Button 
+      <Button
         onClick={handleUpload}
         disabled={!file || loading}
         variant="primary"

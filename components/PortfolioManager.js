@@ -10,6 +10,7 @@ import {
 import PortfolioCalculatorForm from './PortfolioCalculatorForm';
 import moment from 'moment';
 import PropTypes from 'prop-types';
+import { FileUpload } from './FileUpload';
 // import { FileUpload } from './FileUpload'; // Uncomment if using FileUpload
 
 const PortfolioManager = ({
@@ -195,6 +196,11 @@ const PortfolioManager = ({
               title={portfolio.name || `Portfolio ${index + 1}`}
               key={portfolio.id}
             >
+              <FileUpload
+                onColumnsUpdate={handleColumnsUpdate}
+                onUploadSuccess={(data) => handleFileUploadSuccess(data, index)}
+                onUploadError={(error) => handleFileUploadError(error, index)}
+              />
               <PortfolioCalculatorForm
                 key={portfolio.id}
                 index={index}

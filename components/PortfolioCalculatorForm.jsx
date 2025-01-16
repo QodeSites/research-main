@@ -94,9 +94,6 @@ const PortfolioCalculatorForm = ({
       onChange(index, { ...portfolioData, [field]: value });
     }
   };
-  
-  
-
   // Combine predefined strategies with custom columns
   const customColumnList = columns.map(column => ({
     label: column.trim(),
@@ -142,7 +139,6 @@ const PortfolioCalculatorForm = ({
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
   
-
   const handleDebtFundSelect = (selectedList) => {
     const equalWeightage = calculateEqualWeightage(selectedList.length);
     const updatedDebtFunds = selectedList.map(item => ({
@@ -217,7 +213,6 @@ const PortfolioCalculatorForm = ({
   
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
-  
 
   const handleDebtFundInputChange = (debtFundIndex, field, value) => {
     const updatedDebtFunds = [...(portfolioData.selected_debtfunds || [])];
