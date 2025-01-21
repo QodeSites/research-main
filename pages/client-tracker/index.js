@@ -210,8 +210,8 @@ const ClientTracker = () => {
                             <th onClick={() => requestPortfolioSort('name')} style={{ cursor: 'pointer' }}>
                                 Name {renderSortIcon(portfolioSortConfig, 'name')}
                             </th>
-                            <th onClick={() => requestPortfolioSort('code')} style={{ cursor: 'pointer' }}>
-                                Code {renderSortIcon(portfolioSortConfig, 'code')}
+                            <th onClick={() => requestPortfolioSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                                Code {renderSortIcon(portfolioSortConfig, 'nuvama_code')}
                             </th>
                             <th onClick={() => requestPortfolioSort('account')} style={{ cursor: 'pointer' }}>
                                 Account {renderSortIcon(portfolioSortConfig, 'account')}
@@ -234,7 +234,7 @@ const ClientTracker = () => {
                         {sortedPortfolioData.map((item, index) => (
                             <tr key={index}>
                                 <td>{item.name}</td>
-                                <td>{item.code}</td>
+                                <td>{item.nuvama_code}</td>
                                 <td>{item.account}</td>
                                 <td>{formatNumber(item.portfolio_value)}</td>
                                 <td>{formatNumber(item.cash)}</td>
@@ -259,8 +259,8 @@ const ClientTracker = () => {
                             <th onClick={() => requestReturnsSort('name')} style={{ cursor: 'pointer' }}>
                                 Name {renderSortIcon(returnsSortConfig, 'name')}
                             </th>
-                            <th onClick={() => requestReturnsSort('code')} style={{ cursor: 'pointer' }}>
-                                Code {renderSortIcon(returnsSortConfig, 'code')}
+                            <th onClick={() => requestReturnsSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                                Code {renderSortIcon(returnsSortConfig, 'nuvama_code')}
                             </th>
                             <th onClick={() => requestReturnsSort('account')} style={{ cursor: 'pointer' }}>
                                 Account {renderSortIcon(returnsSortConfig, 'account')}
@@ -301,7 +301,7 @@ const ClientTracker = () => {
                         {sortedReturnsData.map((item, index) => (
                             <tr key={index}>
                                 <td>{item.name}</td>
-                                <td>{item.code}</td>
+                                <td>{item.nuvama_code}</td>
                                 <td>{item.account}</td>
                                 <td>{formatNumber(item.d10)}%</td>
                                 <td>{formatNumber(item.m1)}%</td>
