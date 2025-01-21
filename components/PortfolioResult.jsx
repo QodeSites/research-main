@@ -17,6 +17,7 @@ import TrailingReturnsTable from "./TrailingReturnsTable";
 import RollingReturnsTable from "./RollingReturnsTable ";
 import AnnualMetricsTable from "./AnnualReturns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,CartesianGrid } from "recharts";
+import MonthlyPLTable from "./MonthlyPLTable";
 
 // --------------------- Metrics Arrays ---------------------
 const performanceMetrics = [
@@ -47,6 +48,8 @@ const riskReturnMetrics = [
 
 // ====================== Main Component ======================
 function CombinedPortfolioResults({ portfolios }) {
+  console.log(portfolios);
+  
   // --------------------- NAV Chart Options ---------------------
   const COLORS = [
     "#4682B4", // Steel Blue
@@ -651,6 +654,10 @@ function CombinedPortfolioResults({ portfolios }) {
 
       <Row className="mt-5">
         <Col md={12} className="mb-4">{renderMetricsComparison()} </Col>
+      </Row>
+
+      <Row>
+        <MonthlyPLTable portfolios={portfolios} />
       </Row>
 
 
