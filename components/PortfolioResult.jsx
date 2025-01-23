@@ -16,8 +16,9 @@ import AnnualReturnsChart from "./AnnualReturnsChart";
 import TrailingReturnsTable from "./TrailingReturnsTable";
 import RollingReturnsTable from "./RollingReturnsTable ";
 import AnnualMetricsTable from "./AnnualReturns";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from "recharts";
 import MonthlyPLTable from "./MonthlyPLTable";
+import Papa from 'papaparse'; // Note: You'll need to install papaparse package
 
 // --------------------- Metrics Arrays ---------------------
 const performanceMetrics = [
@@ -44,12 +45,225 @@ const riskReturnMetrics = [
   { label: "Sortino Ratio", key: "Sortino Ratio" },
 ];
 
+const formatValue = (value, key) => {
+  if (value == null || isNaN(value)) return "N/A";
+
+  const percentageMetrics = [
+    "Annualized Return (CAGR)",
+    "Best Year Return",
+    "Worst Year Return",
+    "Standard Deviation (annualized)",
+    "Maximum Drawdown",
+    "Treynor Ratio (%)",
+  ];
+
+  if (percentageMetrics.includes(key) || key.toLowerCase().includes('return')) {
+    return `${(value * 100).toFixed(2)}%`;
+  }
+
+  return typeof value === 'number' ? value.toFixed(2) : value;
+};
+
+const downloadMetricsCSV = (portfolios, metricsType) => {
+  portfolios.forEach((portfolio, portfolioIndex) => {
+    let data = [];
+    let filename = '';
+
+    switch(metricsType) {
+      case 'performance':
+        data = performanceMetrics.map(metric => ({
+          Metric: metric.label,
+          Value: formatValue(
+            portfolio.result?.additional_risk_return_metrics?.[metric.key], 
+            metric.key
+          )
+        }));
+        filename = `performance_metrics_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+      case 'risk_return':
+        data = riskReturnMetrics.map(metric => ({
+          Metric: metric.label,
+          Value: formatValue(
+            portfolio.result?.additional_risk_return_metrics?.[metric.key], 
+            metric.key
+          )
+        }));
+        filename = `risk_return_metrics_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+      case 'drawdowns':
+        data = portfolio.result?.top_10_worst_drawdowns?.slice(0, 5).map(dd => ({
+          'Drawdown (%)': dd.Drawdown.toFixed(1),
+          'Peak Date': dd.Peak_date,
+          'Bottom Date': dd.Drawdown_date,
+          'Recovery Date': dd.Recovery_date,
+          'Days to Recover': dd.Recovery_date !== "Not Recovered" 
+            ? calculateDaysBetween(dd.Peak_date, dd.Recovery_date) 
+            : 'N/A'
+        })) || [];
+        filename = `drawdowns_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+      case 'equity_curve':
+        data = portfolio.result?.equity_curve_data?.map(point => ({
+          Date: point.date,
+          NAV: point.NAV
+        })) || [];
+        filename = `equity_curve_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+      case 'annual_returns':
+        const annualReturnsData = portfolio.result?.annual_returns || [];
+        data = annualReturnsData.map(item => ({
+          Year: item.year,
+          Return: `${(item.return * 100).toFixed(2)}%`
+        }));
+        filename = `annual_returns_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+        case 'trailing_returns':
+          // trailing_returns is likely an object, not an array
+          const trailingReturnsObj = portfolio.result?.trailing_returns || {};
+        
+          // Convert { key: value } => [{ period: key, return: value }, ...]
+          const trailingReturnsData = Object.entries(trailingReturnsObj).map(([period, retVal]) => ({
+            period,
+            return: retVal,
+          }));
+        
+          // Now map to your final CSV-friendly structure
+          data = trailingReturnsData.map(item => ({
+            Period: item.period,
+            // If return is null or not a number, set something like "N/A"
+            Return: (item.return !== null && !isNaN(item.return))
+              ? `${(item.return * 100).toFixed(2)}%`
+              : 'N/A',
+          }));
+        
+          filename = `trailing_returns_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+          break;
+        
+
+      case 'rolling_returns':
+        const rollingReturnsData = portfolio.result?.rolling_returns || [];
+        data = rollingReturnsData.map(item => ({
+          Period: item.period,
+          Return: `${(item.return * 100).toFixed(2)}%`
+        }));
+        filename = `rolling_returns_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+        case 'monthly_pl': {
+          const monthlyPLData = portfolio.result.monthly_pl_table || [];
+          
+          // Define full month names to match React component's approach
+          const MONTHS_FULL = [
+            'January', 'February', 'March', 'April', 'May', 'June', 
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+        
+          // Transform each year's data into a single "horizontal" row
+          data = monthlyPLData.map(yearData => {
+            const { Year, Total, ...monthData } = yearData;
+        
+            const row = { Year };
+        
+            // Process each month's value
+            MONTHS_FULL.forEach(month => {
+              const val = monthData[month];
+              
+              // Convert to percentage and handle null/undefined 
+              row[month] = val !== null && val !== undefined 
+                ? (val).toFixed(1) 
+                : '0.0';
+            });
+        
+            // Convert Total to percentage 
+            row.Total = Total !== null && Total !== undefined
+              ? (Total).toFixed(1)
+              : '0.0';
+        
+            return row;
+          });
+        
+          filename = `monthly_pl_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+          break;
+        }
+        
+
+      case 'metrics_comparison':
+        const metricsComparisonData = [
+          { Metric: 'CAGR (%)', Value: portfolio.result?.car?.toFixed(1) || 'N/A' },
+          { Metric: 'Max Drawdown (%)', Value: portfolio.result?.max_dd?.toFixed(1) || 'N/A' },
+          { Metric: 'Avg Drawdown (%)', Value: portfolio.result?.avg_dd?.toFixed(1) || 'N/A' },
+          { Metric: 'CAR/MDD', Value: portfolio.result?.carbymdd?.toFixed(2) || 'N/A' },
+          { Metric: 'Max Gain/Day (%)', Value: portfolio.result?.max_gain?.toFixed(1) || 'N/A' },
+          { Metric: 'Max Loss/Day (%)', Value: portfolio.result?.max_loss?.toFixed(1) || 'N/A' }
+        ];
+        data = metricsComparisonData;
+        filename = `metrics_comparison_${portfolio.portfolio_name || `portfolio_${portfolioIndex + 1}`}.csv`;
+        break;
+
+      default:
+        toast.error('Invalid metrics type');
+        return;
+    }
+
+    if (data.length === 0) {
+      toast.warning(`No data available for ${metricsType}`);
+      return;
+    }
+
+    const csv = Papa.unparse(data);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`${filename} downloaded successfully`);
+  });
+};
+
+// Metrics Download Buttons Component
+const MetricsDownloadButtons = ({ portfolios }) => (
+  <Row className="my-4 justify-content-start">
+    {[
+      'equity_curve', 
+      'performance', 
+      'risk_return', 
+      'drawdowns', 
+      'annual_returns',
+      'trailing_returns', 
+      'rolling_returns', 
+      'monthly_pl',
+      'metrics_comparison'
+    ].map((type) => (
+      <Col key={type} xs="auto" className="mb-2">
+        <Button
+          variant="outline-primary"
+          onClick={() => downloadMetricsCSV(portfolios, type)}
+          className="d-flex align-items-center"
+        >
+          <i className="bi bi-download me-2"></i>
+          Download {type.replace('_', ' ').toUpperCase()} Metrics
+        </Button>
+      </Col>
+    ))}
+  </Row>
+);
 
 
 // ====================== Main Component ======================
 function CombinedPortfolioResults({ portfolios }) {
   console.log(portfolios);
-  
+
   // --------------------- NAV Chart Options ---------------------
   const COLORS = [
     "#4682B4", // Steel Blue
@@ -100,7 +314,10 @@ function CombinedPortfolioResults({ portfolios }) {
         text: "NAV",
         style: { fontSize: "14px" },
       },
-      min: 0,
+      // Remove "min: 0" or set it to null to make the axis dynamic
+      // min: 0, 
+      min: null, 
+    
       labels: {
         style: { fontSize: "12px" },
         formatter: function () {
@@ -109,6 +326,7 @@ function CombinedPortfolioResults({ portfolios }) {
       },
       gridLineWidth: 1,
     },
+    
     legend: {
       enabled: true,
       itemStyle: { fontSize: "12px" },
@@ -216,11 +434,11 @@ function CombinedPortfolioResults({ portfolios }) {
     series: [], // Data series will be dynamically updated
     credits: { enabled: false },
   });
-  
+
 
   const renderRechartsDrawdownChart = (portfolios) => {
     if (!portfolios?.length) return null;
-  
+
     // Prepare the data for Recharts
     const rechartsData = [];
     portfolios.forEach((portfolio, index) => {
@@ -236,10 +454,10 @@ function CombinedPortfolioResults({ portfolios }) {
         });
       }
     });
-  
+
     // Sort data by date
     rechartsData.sort((a, b) => new Date(a.date) - new Date(b.date));
-  
+
     return (
       <Card className="mb-5 shadow-sm">
         <Card.Header>
@@ -260,10 +478,11 @@ function CombinedPortfolioResults({ portfolios }) {
                 style={{ fontSize: "12px" }}
               />
               <YAxis
-                domain={[-50, 0]}
+                domain={['dataMin', 0]}
                 tickFormatter={(value) => `${Math.abs(value).toFixed(1)}%`}
                 style={{ fontSize: "12px" }}
               />
+
               <Tooltip
                 formatter={(value) => `${Math.abs(value).toFixed(1)}%`}
                 labelFormatter={(label) => {
@@ -573,6 +792,8 @@ function CombinedPortfolioResults({ portfolios }) {
             </Button>
           </Col>
         ))}
+        <MetricsDownloadButtons portfolios={portfolios} />
+
       </Row>
 
       {/* Portfolio Pie (Donut) Charts */}

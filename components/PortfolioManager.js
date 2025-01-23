@@ -57,7 +57,16 @@ const PortfolioManager = ({
       setActiveKey(k);
     }
   };
-
+  const handleFileUploadSuccess = useCallback((data, index) => {
+    setPortfolios(prevPortfolios => {
+      const newPortfolios = [...prevPortfolios];
+      newPortfolios[index] = {
+        ...newPortfolios[index],
+        filename: data.filename
+      };
+      return newPortfolios;
+    });
+  }, []);
   const handlePortfolioChange = useCallback((index, updatedPortfolio) => {
     setPortfolios(prevPortfolios => {
       const newPortfolios = [...prevPortfolios];
@@ -65,7 +74,7 @@ const PortfolioManager = ({
         ...newPortfolios[index],
         ...updatedPortfolio
       };
-
+      
       // If the first portfolio's dates are updated, sync them to others
       if (index === 0) {
         const { start_date, end_date } = updatedPortfolio;
@@ -155,6 +164,7 @@ const PortfolioManager = ({
     try {
       const submittedData = portfolios.map(portfolio => ({
         name: portfolio.name,
+        filename: portfolio.filename,
         start_date: portfolio.start_date ? moment(portfolio.start_date).format('DD-MM-YYYY') : null,
         end_date: portfolio.end_date ? moment(portfolio.end_date).format('DD-MM-YYYY') : null,
         invest_amount: parseFloat(portfolio.invest_amount),

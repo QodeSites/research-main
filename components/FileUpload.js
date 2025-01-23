@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 // Instead of importing axios directly, import your custom axios instance:
 import app from '../utils/axiosConfig'; // or the correct path
 
-export const FileUpload = ({ onColumnsUpdate }) => {
+export const FileUpload = ({ onColumnsUpdate, onUploadSuccess  }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -72,8 +72,14 @@ export const FileUpload = ({ onColumnsUpdate }) => {
         setSuccess(true);
         setFile(null);
         fileInputRef.current.value = null;
-
         const { columns } = uploadResponse.data;
+        onColumnsUpdate(columns);
+        
+        // Call onUploadSuccess with filename and other data
+        onUploadSuccess({
+          filename: file.name,
+          columns: columns
+        });
         if (columns && Array.isArray(columns)) {
           onColumnsUpdate(columns);
 
@@ -137,5 +143,6 @@ export const FileUpload = ({ onColumnsUpdate }) => {
 };
 
 FileUpload.propTypes = {
-  onColumnsUpdate: PropTypes.func.isRequired
+  onColumnsUpdate: PropTypes.func.isRequired,
+  onUploadSuccess: PropTypes.func
 };
