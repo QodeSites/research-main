@@ -7,7 +7,7 @@ const DataViewer = () => {
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(""); // New state for search
+  const [searchQuery, setSearchQuery] = useState(""); // State for search
 
   // Fetch Data
   useEffect(() => {
@@ -51,7 +51,7 @@ const DataViewer = () => {
   );
 
   return (
-    <div className="m-6">
+    <div className="p-4">
       <h2 className="text-left mb-4">Website Data</h2>
 
       {/* Toggle Buttons */}
@@ -85,51 +85,58 @@ const DataViewer = () => {
 
       {/* Inquiries Table */}
       {!loading && !error && activeView === "inquiries" && (
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Phone Number</th>
-              <th>Investment Goal</th>
-              <th>Experience</th>
-              <th>Preferred Strategy</th>
-              <th>Investment Size</th>
-              <th>Received Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inquiries.length > 0 ? (
-              inquiries.map((inquiry, index) => (
-                <tr key={inquiry.id}>
-                  <td>{index + 1}</td>
-                  <td>{inquiry.name}</td>
-                  <td>{inquiry.email}</td>
-                  <td>{inquiry.phone_number}</td>
-                  <td>{inquiry.investment_goal}</td>
-                  <td>{inquiry.investment_experience}</td>
-                  <td>{inquiry.preferred_strategy}</td>
-                  <td>{inquiry.initial_investment_size}</td>
-                  <td>{new Date(inquiry.createdAt).toLocaleString()}</td>
-                </tr>
-              ))
-            ) : (
+        <>
+          {/* Total Inquiries */}
+          <p>
+            Total Inquiries: <strong>{inquiries.length}</strong>
+          </p>
+
+          <Table striped bordered hover responsive>
+            <thead>
               <tr>
-                <td colSpan="9" className="text-center">
-                  No inquiries found.
-                </td>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone Number</th>
+                <th>Investment Goal</th>
+                <th>Experience</th>
+                <th>Preferred Strategy</th>
+                <th>Investment Size</th>
+                <th>Received Date</th>
               </tr>
-            )}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {inquiries.length > 0 ? (
+                inquiries.map((inquiry, index) => (
+                  <tr key={inquiry.id}>
+                    <td>{index + 1}</td>
+                    <td>{inquiry.name}</td>
+                    <td>{inquiry.email}</td>
+                    <td>{inquiry.phone_number}</td>
+                    <td>{inquiry.investment_goal}</td>
+                    <td>{inquiry.investment_experience}</td>
+                    <td>{inquiry.preferred_strategy}</td>
+                    <td>{inquiry.initial_investment_size}</td>
+                    <td>{new Date(inquiry.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" className="text-center">
+                    No inquiries found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </>
       )}
 
       {/* Newsletter Emails Section */}
       {!loading && !error && activeView === "emails" && (
         <>
           {/* Search Input */}
-          <Form className="mb-3 ">
+          <Form className="mb-3">
             <Form.Control
               type="text"
               placeholder="Search emails..."
@@ -138,6 +145,11 @@ const DataViewer = () => {
               aria-label="Search Emails"
             />
           </Form>
+
+          {/* Total and Filtered Emails */}
+          <p>
+            Showing <strong>{filteredEmails.length}</strong> out of <strong>{emails.length}</strong> emails
+          </p>
 
           {/* Emails Table */}
           <Table striped bordered hover responsive>
