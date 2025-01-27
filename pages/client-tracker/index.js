@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Button, Container, Spinner } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Table, Button, Container, Spinner, Alert, Form } from 'react-bootstrap';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
 const ClientTracker = () => {
@@ -13,6 +13,16 @@ const ClientTracker = () => {
 
     const [portfolioSortConfig, setPortfolioSortConfig] = useState({ key: null, direction: 'ascending' });
     const [returnsSortConfig, setReturnsSortConfig] = useState({ key: null, direction: 'ascending' });
+
+    const [portfolioSearchQuery, setPortfolioSearchQuery] = useState("");
+    const [returnsSearchQuery, setReturnsSearchQuery] = useState("");
+
+    const portfolioSearchTimeout = useRef(null);
+    const returnsSearchTimeout = useRef(null);
+
+    const [debouncedPortfolioSearch, setDebouncedPortfolioSearch] = useState("");
+    const [debouncedReturnsSearch, setDebouncedReturnsSearch] = useState("");
+
     const convertToNumber = (value) => {
         if (value === null || value === undefined || value === "NaN") return null;
         const parsed = parseFloat(value);
@@ -163,30 +173,57 @@ const ClientTracker = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
-                <Spinner animation="border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </Spinner>
-            </Container>
-        );
-    }
+    // Debounce logic for Portfolio Search
+    useEffect(() => {
+        clearTimeout(portfolioSearchTimeout.current);
+        portfolioSearchTimeout.current = setTimeout(() => {
+            setDebouncedPortfolioSearch(portfolioSearchQuery);
+        }, 300); // 300ms delay
 
-    if (error) {
-        return (
-            <Container className="mt-4">
-                <div className="alert alert-danger" role="alert">
-                    {error}
-                </div>
-            </Container>
-        );
-    }
+        return () => clearTimeout(portfolioSearchTimeout.current);
+    }, [portfolioSearchQuery]);
+
+    // Debounce logic for Returns Search
+    useEffect(() => {
+        clearTimeout(returnsSearchTimeout.current);
+        returnsSearchTimeout.current = setTimeout(() => {
+            setDebouncedReturnsSearch(returnsSearchQuery);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(returnsSearchTimeout.current);
+    }, [returnsSearchQuery]);
+
+    // Filtered Portfolio Data based on debounced search query
+    const filteredPortfolioData = useMemo(() => {
+        return sortedPortfolioData.filter((item) => {
+            const query = debouncedPortfolioSearch.toLowerCase();
+            return (
+                item.name.toLowerCase().includes(query) ||
+                item.nuvama_code.toLowerCase().includes(query) ||
+                item.account.toLowerCase().includes(query)
+                // Add more fields if necessary
+            );
+        });
+    }, [sortedPortfolioData, debouncedPortfolioSearch]);
+
+    // Filtered Returns Data based on debounced search query
+    const filteredReturnsData = useMemo(() => {
+        return sortedReturnsData.filter((item) => {
+            const query = debouncedReturnsSearch.toLowerCase();
+            return (
+                item.name.toLowerCase().includes(query) ||
+                item.nuvama_code.toLowerCase().includes(query) ||
+                item.account.toLowerCase().includes(query)
+                // Add more fields if necessary
+            );
+        });
+    }, [sortedReturnsData, debouncedReturnsSearch]);
 
     return (
-        <div className="p-4">
+        <div className="m-6">
             <h1 className="mb-4">Client Tracker</h1>
             
+            {/* Toggle Buttons */}
             <div className="mb-3">
                 <Button 
                     variant={activeView === 'portfolio' ? 'primary' : 'outline-primary'}
@@ -203,120 +240,178 @@ const ClientTracker = () => {
                 </Button>
             </div>
 
-            {activeView === 'portfolio' ? (
-                <Table bordered responsive>
-                    <thead>
-                        <tr>
-                            <th onClick={() => requestPortfolioSort('name')} style={{ cursor: 'pointer' }}>
-                                Name {renderSortIcon(portfolioSortConfig, 'name')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('nuvama_code')} style={{ cursor: 'pointer' }}>
-                                Code {renderSortIcon(portfolioSortConfig, 'nuvama_code')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('account')} style={{ cursor: 'pointer' }}>
-                                Account {renderSortIcon(portfolioSortConfig, 'account')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('portfolio_value')} style={{ cursor: 'pointer' }}>
-                                Portfolio Value {renderSortIcon(portfolioSortConfig, 'portfolio_value')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('cash')} style={{ cursor: 'pointer' }}>
-                                Cash {renderSortIcon(portfolioSortConfig, 'cash')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('cash_percentage')} style={{ cursor: 'pointer' }}>
-                                Cash % {renderSortIcon(portfolioSortConfig, 'cash_percentage')}
-                            </th>
-                            <th onClick={() => requestPortfolioSort('strategy')} style={{ cursor: 'pointer' }}>
-                                Derivatives Percentage {renderSortIcon(portfolioSortConfig, 'derivatives_percentage')}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedPortfolioData.map((item, index) => (
-                            <tr key={index}>
-                                <td>{item.name}</td>
-                                <td>{item.nuvama_code}</td>
-                                <td>{item.account}</td>
-                                <td>{formatNumber(item.portfolio_value)}</td>
-                                <td>{formatNumber(item.cash)}</td>
-                                <td style={{ 
-                                    backgroundColor: getCashPercentageColor(item.cash_percentage),
-                                    color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
-                                    fontWeight: 'bold',
-                                    textAlign: 'center',
-                                    padding: '8px'
-                                }}>
-                                    {formatNumber(item.cash_percentage)}%
-                                </td>
-                                <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
+            {/* Error Message */}
+            {error && <Alert variant="danger">{error}</Alert>}
+
+            {/* Loading Spinner */}
+            {loading && (
+                <div className="text-center">
+                    <Spinner animation="border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                </div>
+            )}
+
+            {/* Portfolio Details Section */}
+            {!loading && !error && activeView === 'portfolio' && (
+                <>
+                    {/* Search Input */}
+                    <Form className="mb-3">
+                        <Form.Control
+                            type="text"
+                            placeholder="Search Portfolio..."
+                            value={portfolioSearchQuery}
+                            onChange={(e) => setPortfolioSearchQuery(e.target.value)}
+                            aria-label="Search Portfolio"
+                        />
+                    </Form>
+
+                    <Table bordered responsive>
+                        <thead>
+                            <tr>
+                                <th onClick={() => requestPortfolioSort('name')} style={{ cursor: 'pointer' }}>
+                                    Name {renderSortIcon(portfolioSortConfig, 'name')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                                    Code {renderSortIcon(portfolioSortConfig, 'nuvama_code')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('account')} style={{ cursor: 'pointer' }}>
+                                    Account {renderSortIcon(portfolioSortConfig, 'account')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('portfolio_value')} style={{ cursor: 'pointer' }}>
+                                    Portfolio Value {renderSortIcon(portfolioSortConfig, 'portfolio_value')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('cash')} style={{ cursor: 'pointer' }}>
+                                    Cash {renderSortIcon(portfolioSortConfig, 'cash')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('cash_percentage')} style={{ cursor: 'pointer' }}>
+                                    Cash % {renderSortIcon(portfolioSortConfig, 'cash_percentage')}
+                                </th>
+                                <th onClick={() => requestPortfolioSort('derivatives_percentage')} style={{ cursor: 'pointer' }}>
+                                    Derivatives Percentage {renderSortIcon(portfolioSortConfig, 'derivatives_percentage')}
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </Table>
-            ) : (
-                <Table bordered striped hover responsive>
-                    <thead>
-                        <tr>
-                            <th onClick={() => requestReturnsSort('name')} style={{ cursor: 'pointer' }}>
-                                Name {renderSortIcon(returnsSortConfig, 'name')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('nuvama_code')} style={{ cursor: 'pointer' }}>
-                                Code {renderSortIcon(returnsSortConfig, 'nuvama_code')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('account')} style={{ cursor: 'pointer' }}>
-                                Account {renderSortIcon(returnsSortConfig, 'account')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('d10')} style={{ cursor: 'pointer' }}>
-                                10D {renderSortIcon(returnsSortConfig, 'd10')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('m1')} style={{ cursor: 'pointer' }}>
-                                1M {renderSortIcon(returnsSortConfig, 'm1')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('m3')} style={{ cursor: 'pointer' }}>
-                                3M {renderSortIcon(returnsSortConfig, 'm3')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('m6')} style={{ cursor: 'pointer' }}>
-                                6M {renderSortIcon(returnsSortConfig, 'm6')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('y1')} style={{ cursor: 'pointer' }}>
-                                1Y {renderSortIcon(returnsSortConfig, 'y1')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('y2')} style={{ cursor: 'pointer' }}>
-                                2Y {renderSortIcon(returnsSortConfig, 'y2')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('y5')} style={{ cursor: 'pointer' }}>
-                                5Y {renderSortIcon(returnsSortConfig, 'y5')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('since_inception')} style={{ cursor: 'pointer' }}>
-                                Since Inception {renderSortIcon(returnsSortConfig, 'since_inception')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('mdd')} style={{ cursor: 'pointer' }}>
-                                MDD {renderSortIcon(returnsSortConfig, 'mdd')}
-                            </th>
-                            <th onClick={() => requestReturnsSort('current_drawdown')} style={{ cursor: 'pointer' }}>
-                                Current Drawdown {renderSortIcon(returnsSortConfig, 'current_drawdown')}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedReturnsData.map((item, index) => (
-                            <tr key={index}>
-                                <td>{item.name}</td>
-                                <td>{item.nuvama_code}</td>
-                                <td>{item.account}</td>
-                                <td>{formatNumber(item.d10)}%</td>
-                                <td>{formatNumber(item.m1)}%</td>
-                                <td>{formatNumber(item.m3)}%</td>
-                                <td>{formatNumber(item.m6)}%</td>
-                                <td>{formatNumber(item.y1)}%</td>
-                                <td>{formatNumber(item.y2)}%</td>
-                                <td>{formatNumber(item.y5)}%</td>
-                                <td>{formatNumber(item.since_inception)}%</td>
-                                <td>{formatNumber(item.mdd)}%</td>
-                                <td>{formatNumber(item.current_drawdown)}%</td>
+                        </thead>
+                        <tbody>
+                            {filteredPortfolioData.length > 0 ? (
+                                filteredPortfolioData.map((item, index) => (
+                                    <tr key={index}>
+                                        <td>{item.name}</td>
+                                        <td>{item.nuvama_code}</td>
+                                        <td>{item.account}</td>
+                                        <td>{formatNumber(item.portfolio_value)}</td>
+                                        <td>{formatNumber(item.cash)}</td>
+                                        <td style={{ 
+                                            backgroundColor: getCashPercentageColor(item.cash_percentage),
+                                            color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
+                                            fontWeight: 'bold',
+                                            textAlign: 'center',
+                                            padding: '8px'
+                                        }}>
+                                            {formatNumber(item.cash_percentage)}%
+                                        </td>
+                                        <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="7" className="text-center">
+                                        No portfolio entries found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </Table>
+                </>
+            )}
+
+            {/* Trailing Returns Section */}
+            {!loading && !error && activeView === 'returns' && (
+                <>
+                    {/* Search Input */}
+                    <Form className="mb-3">
+                        <Form.Control
+                            type="text"
+                            placeholder="Search Trailing Returns..."
+                            value={returnsSearchQuery}
+                            onChange={(e) => setReturnsSearchQuery(e.target.value)}
+                            aria-label="Search Trailing Returns"
+                        />
+                    </Form>
+
+                    <Table bordered striped hover responsive>
+                        <thead>
+                            <tr>
+                                <th onClick={() => requestReturnsSort('name')} style={{ cursor: 'pointer' }}>
+                                    Name {renderSortIcon(returnsSortConfig, 'name')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                                    Code {renderSortIcon(returnsSortConfig, 'nuvama_code')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('account')} style={{ cursor: 'pointer' }}>
+                                    Account {renderSortIcon(returnsSortConfig, 'account')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('d10')} style={{ cursor: 'pointer' }}>
+                                    10D {renderSortIcon(returnsSortConfig, 'd10')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('m1')} style={{ cursor: 'pointer' }}>
+                                    1M {renderSortIcon(returnsSortConfig, 'm1')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('m3')} style={{ cursor: 'pointer' }}>
+                                    3M {renderSortIcon(returnsSortConfig, 'm3')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('m6')} style={{ cursor: 'pointer' }}>
+                                    6M {renderSortIcon(returnsSortConfig, 'm6')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('y1')} style={{ cursor: 'pointer' }}>
+                                    1Y {renderSortIcon(returnsSortConfig, 'y1')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('y2')} style={{ cursor: 'pointer' }}>
+                                    2Y {renderSortIcon(returnsSortConfig, 'y2')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('y5')} style={{ cursor: 'pointer' }}>
+                                    5Y {renderSortIcon(returnsSortConfig, 'y5')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('since_inception')} style={{ cursor: 'pointer' }}>
+                                    Since Inception {renderSortIcon(returnsSortConfig, 'since_inception')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('mdd')} style={{ cursor: 'pointer' }}>
+                                    MDD {renderSortIcon(returnsSortConfig, 'mdd')}
+                                </th>
+                                <th onClick={() => requestReturnsSort('current_drawdown')} style={{ cursor: 'pointer' }}>
+                                    Current Drawdown {renderSortIcon(returnsSortConfig, 'current_drawdown')}
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </Table>
+                        </thead>
+                        <tbody>
+                            {filteredReturnsData.length > 0 ? (
+                                filteredReturnsData.map((item, index) => (
+                                    <tr key={index}>
+                                        <td>{item.name}</td>
+                                        <td>{item.nuvama_code}</td>
+                                        <td>{item.account}</td>
+                                        <td>{formatNumber(item.d10)}%</td>
+                                        <td>{formatNumber(item.m1)}%</td>
+                                        <td>{formatNumber(item.m3)}%</td>
+                                        <td>{formatNumber(item.m6)}%</td>
+                                        <td>{formatNumber(item.y1)}%</td>
+                                        <td>{formatNumber(item.y2)}%</td>
+                                        <td>{formatNumber(item.y5)}%</td>
+                                        <td>{formatNumber(item.since_inception)}%</td>
+                                        <td>{formatNumber(item.mdd)}%</td>
+                                        <td>{formatNumber(item.current_drawdown)}%</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="13" className="text-center">
+                                        No trailing returns entries found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </Table>
+                </>
             )}
         </div>
     );

@@ -7,7 +7,7 @@ import {
 } from "react-bootstrap";
 
 // import react feather icons
-import { BarChart, TrendingUp,Clipboard } from "react-feather";
+import { BarChart, TrendingUp, Clipboard } from "react-feather";
 
 // import simple bar scrolling used for notification item scrolling
 import SimpleBar from "simplebar-react";
@@ -33,7 +33,7 @@ const NavbarVertical = (props) => {
           </Card>
           <Card bsPrefix="nav-item">
             <Link href="/strategy-returns" className="nav-link">
-               <TrendingUp className="feather-icon" size={18} />&nbsp;
+              <TrendingUp className="feather-icon" size={18} />&nbsp;
               Indices Returns
             </Link>
           </Card>
@@ -43,19 +43,26 @@ const NavbarVertical = (props) => {
               Indices Drawdowns
             </Link>
           </Card>
-        
+
 
           <Card bsPrefix="nav-item">
             <Link href="/portfolio-visualiser" className="nav-link">
-               <Clipboard className="feather-icon" size={18} />&nbsp;
+              <Clipboard className="feather-icon" size={18} />&nbsp;
               Portfolio Visualiser
             </Link>
           </Card>
 
           <Card bsPrefix="nav-item">
             <Link href="/client-tracker" className="nav-link">
-               <Clipboard className="feather-icon" size={18} />&nbsp;
+              <Clipboard className="feather-icon" size={18} />&nbsp;
               Client Tracker
+            </Link>
+          </Card>
+
+          <Card bsPrefix="nav-item">
+            <Link href="/website-enquiries" className="nav-link">
+              <Clipboard className="feather-icon" size={18} />&nbsp;
+              Website Enquries
             </Link>
           </Card>
         </Accordion>
