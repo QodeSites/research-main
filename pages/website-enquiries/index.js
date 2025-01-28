@@ -61,7 +61,7 @@ const DataViewer = () => {
           className="me-2"
           onClick={() => setActiveView("inquiries")}
         >
-          Client Inquiries
+          Website Inquiries
         </Button>
         <Button
           variant={activeView === "emails" ? "primary" : "outline-primary"}
