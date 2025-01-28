@@ -3,7 +3,7 @@ import db from "../../lib/db";
 export default async function handler(req, res) {
     try {
         // SQL Query to fetch newsletter emails
-        const query = `SELECT id, email, "createdAt" FROM emails ORDER BY "createdAt" DESC;`;
+        const query = `SELECT id, email, "createdAt" FROM emails ORDER BY id DESC;`;
 
         // Execute the query
         const results = await db.query(query);

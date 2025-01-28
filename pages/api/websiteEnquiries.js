@@ -4,10 +4,10 @@ export default async function handler(req, res) {
     try {
         // SQL Query to fetch client enquiries ordered by createdDate in descending order
         const query = `
-    SELECT *
-    FROM client_enquiry
-    ORDER BY "createdAt" DESC;
-`;
+            SELECT *
+            FROM client_enquiry
+            ORDER BY id desc;
+        `;
 
 
         // Execute the query
