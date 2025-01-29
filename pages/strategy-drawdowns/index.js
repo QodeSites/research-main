@@ -18,10 +18,12 @@ const IndexTable = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Sorting state
+    // Separate sorting configurations for each table
     const [sortConfig, setSortConfig] = useState({
-        key: null,
-        direction: 'ascending'
+        qodeStrategies: { key: null, direction: 'ascending' },
+        strategy: { key: null, direction: 'ascending' },
+        broadBased: { key: null, direction: 'ascending' },
+        sectoral: { key: null, direction: 'ascending' },
     });
 
     // New state for last fetch time
@@ -66,7 +68,7 @@ const IndexTable = () => {
         'NIFTY PSE'
     ];
 
-    // Function to segregate and order indices into Broad Based and Sectoral
+    // Function to segregate and order indices into categories
     const segregateIndices = (rawData) => {
         const dataMap = new Map(rawData.map(item => [item.indices, item]));
 
@@ -141,56 +143,67 @@ const IndexTable = () => {
         }
     };
 
-    // Sorting function
-    const sortedData = useMemo(() => {
-        let sortableData = [...data];
-        if (sortConfig.key !== null) {
-            sortableData.sort((a, b) => {
-                let aValue = a[sortConfig.key];
-                let bValue = b[sortConfig.key];
+    // Sorting function for individual tables
+    const getSortedData = (items, tableType) => {
+        const config = sortConfig[tableType];
+        if (!config.key) return items;
 
-                // Handle different data types
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase();
-                    bValue = bValue.toLowerCase();
-                } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-                    aValue = aValue ? 1 : 0;
-                    bValue = bValue ? 1 : 0;
-                }
+        const sortedItems = [...items].sort((a, b) => {
+            let aValue = a[config.key];
+            let bValue = b[config.key];
 
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-        console.log('Sorted Data:', sortableData); // Debugging
-        return sortableData;
-    }, [data, sortConfig]);
+            // Handle different data types
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+                aValue = aValue ? 1 : 0;
+                bValue = bValue ? 1 : 0;
+            }
+
+            if (aValue < bValue) {
+                return config.direction === 'ascending' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return config.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return sortedItems;
+    };
 
     // Segregate sorted data
     const segregatedData = useMemo(() => {
-        const result = segregateIndices(sortedData);
-        console.log("Segregated Data: ", result); // Debugging the segregated data
-        return result;
-    }, [sortedData]);
+        const sortedSegregate = segregateIndices(data);
+        return {
+            qodeStrategies: getSortedData(sortedSegregate.qodeStrategies, 'qodeStrategies'),
+            strategy: getSortedData(sortedSegregate.strategy, 'strategy'),
+            broadBased: getSortedData(sortedSegregate.broadBased, 'broadBased'),
+            sectoral: getSortedData(sortedSegregate.sectoral, 'sectoral'),
+        };
+    }, [data, sortConfig]);
 
-    // Sorting request handler
-    const requestSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
+    // Sorting request handler for individual tables
+    const requestSort = (tableType, key) => {
+        setSortConfig(prevConfig => {
+            const currentConfig = prevConfig[tableType];
+            let direction = 'ascending';
+            if (currentConfig.key === key && currentConfig.direction === 'ascending') {
+                direction = 'descending';
+            }
+            return {
+                ...prevConfig,
+                [tableType]: { key, direction }
+            };
+        });
     };
 
-    // Sorting icon renderer
-    const renderSortIcon = (key) => {
-        if (sortConfig.key !== key) return null;
-        return sortConfig.direction === 'ascending'
+    // Sorting icon renderer for individual tables
+    const renderSortIcon = (tableType, key) => {
+        const config = sortConfig[tableType];
+        if (config.key !== key) return null;
+        return config.direction === 'ascending'
             ? <CaretUpFill className="ml-1 sort-icon" />
             : <CaretDownFill className="ml-1 sort-icon" />;
     };
@@ -199,35 +212,58 @@ const IndexTable = () => {
         fetchIndices();
     }, []);
 
-    // Function to render table headers (including serial number column)
-    const renderTableHeader = () => (
+    // Function to render table headers (including serial number column) for individual tables
+    const renderTableHeader = (tableType) => (
         <tr>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')} className="s-no-column">
-                S.No {renderSortIcon('serialNo')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'serialNo')}
+                className="s-no-column"
+            >
+                S.No {renderSortIcon(tableType, 'serialNo')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('indices')}>
-                Indices {renderSortIcon('indices')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'indices')}
+            >
+                Indices {renderSortIcon(tableType, 'indices')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nav')}>
-                <div className="nav-header">
-                    Current NAV {renderSortIcon('nav')}
-                    {date && <div className="nav-date"><strong>({date})</strong></div>}
-                </div>
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'nav')}
+            >
+                Current NAV {renderSortIcon(tableType, 'nav')}
+                {date && <div style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({date})</div>}
             </th>
-            <th onClick={() => requestSort('currentDD')} style={{ cursor: 'pointer' }}>
-                Current DD {renderSortIcon('currentDD')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'currentDD')}
+            >
+                Current DD {renderSortIcon(tableType, 'currentDD')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('peak')}>
-                Peak {renderSortIcon('peak')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'peak')}
+            >
+                Peak {renderSortIcon(tableType, 'peak')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd10')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon('dd10')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd10')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon(tableType, 'dd10')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd15')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon('dd15')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd15')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon(tableType, 'dd15')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd20')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon('dd20')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd20')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon(tableType, 'dd20')}
             </th>
         </tr>
     );
@@ -441,7 +477,7 @@ const IndexTable = () => {
                                         <col style={{ width: '100px' }} /> {/* 20% DD */}
                                     </colgroup>
                                     <thead className="table-header">
-                                        {renderTableHeader()}
+                                        {renderTableHeader('qodeStrategies')}
                                     </thead>
                                     <tbody>
                                         {renderTableRows(segregatedData.qodeStrategies)}
@@ -473,7 +509,7 @@ const IndexTable = () => {
                                         <col style={{ width: '100px' }} /> {/* 20% DD */}
                                     </colgroup>
                                     <thead className="table-header">
-                                        {renderTableHeader()}
+                                        {renderTableHeader('strategy')}
                                     </thead>
                                     <tbody>
                                         {renderTableRows(segregatedData.strategy)}
@@ -505,7 +541,7 @@ const IndexTable = () => {
                                         <col style={{ width: '100px' }} /> {/* 20% DD */}
                                     </colgroup>
                                     <thead className="table-header">
-                                        {renderTableHeader()}
+                                        {renderTableHeader('broadBased')}
                                     </thead>
                                     <tbody>
                                         {renderTableRows(segregatedData.broadBased)}
@@ -537,7 +573,7 @@ const IndexTable = () => {
                                         <col style={{ width: '100px' }} /> {/* 20% DD */}
                                     </colgroup>
                                     <thead className="table-header">
-                                        {renderTableHeader()}
+                                        {renderTableHeader('sectoral')}
                                     </thead>
                                     <tbody>
                                         {renderTableRows(segregatedData.sectoral)}

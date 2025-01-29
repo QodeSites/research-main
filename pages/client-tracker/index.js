@@ -77,9 +77,10 @@ const ClientTracker = () => {
         }));
     };
 
+    // Updated formatNumber function to use 'en-IN' locale for Indian comma separators
     const formatNumber = (value) => {
         if (value === null || value === "NaN" || value === undefined) return "-";
-        return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     // Improved color gradient function
@@ -276,8 +277,6 @@ const ClientTracker = () => {
             current_drawdown: totals.current_drawdown / count,
         };
     }, [filteredReturnsData]);
-
-
 
     return (
         <div className="m-6">
@@ -509,6 +508,7 @@ const ClientTracker = () => {
             )}
         </div>
     );
+
 };
 
 export default ClientTracker;
