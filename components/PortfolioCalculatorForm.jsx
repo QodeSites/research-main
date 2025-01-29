@@ -1,5 +1,5 @@
 // PortfolioCalculatorForm.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Form,
   Button,
@@ -81,6 +81,8 @@ const PortfolioCalculatorForm = ({
   isBenchmarkDisabled = false,
 }) => {
 
+  const [totalWeightError, setTotalWeightError] = useState('');
+
   // Handle form data changes
   const handleInputChange = (field, value) => {
     if (field === "invest_amount") {
@@ -94,6 +96,7 @@ const PortfolioCalculatorForm = ({
       onChange(index, { ...portfolioData, [field]: value });
     }
   };
+
   // Combine predefined strategies with custom columns
   const customColumnList = columns.map(column => ({
     label: column.trim(),
@@ -112,97 +115,90 @@ const PortfolioCalculatorForm = ({
     name: fund.label
   }));
 
-  const calculateEqualWeightage = (count) => {
-    return count === 0 ? '' : (100 / count).toFixed(1);
+  // Helper function to distribute remaining weight
+  const distributeRemainingWeight = (systems, totalAssigned, target = 100) => {
+    let remaining = target - totalAssigned;
+    for (let i = 0; i < systems.length && remaining > 0; i++) {
+      systems[i].weightage += 1;
+      remaining -= 1;
+    }
+    return systems;
   };
 
   const handleStrategySelect = (selectedList) => {
     const totalStrategies = selectedList.length;
-    const equalWeightage = 100 / totalStrategies;
-  
-    const updatedSystems = selectedList.map(item => ({
+    if (totalStrategies === 0) {
+      onChange(index, { ...portfolioData, selected_systems: [] });
+      return;
+    }
+
+    const baseWeight = Math.floor(100 / totalStrategies);
+    const remainder = 100 - (baseWeight * totalStrategies);
+
+    const updatedSystems = selectedList.map((item, idx) => ({
       system: item.value,
-      weightage: parseFloat(equalWeightage.toFixed(1)),
+      weightage: baseWeight,
       leverage: '1',
       column: '',
     }));
-  
-    // Adjust weightages proportionally
-    const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0);
-    if (totalWeight !== 100) {
-      const adjustmentFactor = 100 / totalWeight;
-      updatedSystems.forEach((system) => {
-        system.weightage = parseFloat((system.weightage * adjustmentFactor).toFixed(1));
-      });
+
+    // Distribute the remaining weight
+    if (remainder > 0) {
+      for (let i = 0; i < remainder; i++) {
+        updatedSystems[i].weightage += 1;
+      }
     }
-  
+
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
+    setTotalWeightError('');
   };
   
   const handleDebtFundSelect = (selectedList) => {
-    const equalWeightage = calculateEqualWeightage(selectedList.length);
-    const updatedDebtFunds = selectedList.map(item => ({
+    const count = selectedList.length;
+    if (count === 0) {
+      onChange(index, { ...portfolioData, selected_debtfunds: [] });
+      return;
+    }
+
+    const baseWeight = Math.floor(100 / count);
+    const remainder = 100 - (baseWeight * count);
+
+    const updatedDebtFunds = selectedList.map((item, idx) => ({
       debtfund: item.value,
-      weightage: equalWeightage,
+      weightage: baseWeight,
       leverage: '1'
     }));
+
+    // Distribute the remaining weight
+    if (remainder > 0) {
+      for (let i = 0; i < remainder; i++) {
+        updatedDebtFunds[i].weightage += 1;
+      }
+    }
+
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
   };
 
   const handleSystemInputChange = (systemIndex, field, value) => {
     const updatedSystems = [...(portfolioData.selected_systems || [])];
-  
+
     if (field === 'weightage') {
-      // Convert input to number and ensure it's between 0 and 100
-      let newWeight = Math.min(Math.max(parseInt(value) || 0, 0), 100);
-  
-      // Get sum of other weights before adjustment
-      const otherWeightsSum = updatedSystems.reduce((sum, system, idx) => 
-        idx === systemIndex ? sum : sum + (parseInt(system.weightage) || 0), 0);
-      
-      // If other weights sum is 0, distribute remaining weight equally
-      if (otherWeightsSum === 0) {
-        const remainingWeight = 100 - newWeight;
-        const otherSystemsCount = updatedSystems.length - 1;
-        if (otherSystemsCount > 0) {
-          const equalShare = Math.floor(remainingWeight / otherSystemsCount);
-          let remainder = remainingWeight % otherSystemsCount;
-  
-          updatedSystems.forEach((system, idx) => {
-            if (idx === systemIndex) {
-              system.weightage = newWeight;
-            } else {
-              system.weightage = equalShare + (remainder-- > 0 ? 1 : 0); // Distribute remainder
-            }
-          });
-        }
+      // Parse input as integer
+      let newWeight = parseInt(value, 10);
+      if (isNaN(newWeight)) newWeight = 0;
+      newWeight = Math.min(Math.max(newWeight, 0), 100);
+
+      updatedSystems[systemIndex] = {
+        ...updatedSystems[systemIndex],
+        weightage: newWeight,
+      };
+
+      // Validate total weightage
+      const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseInt(system.weightage, 10) || 0), 0);
+      if (totalWeight !== 100) {
+        setTotalWeightError(`Total weightage is ${totalWeight}%. It should sum up to 100%.`);
       } else {
-        // Adjust other weights proportionally
-        const remainingWeight = 100 - newWeight;
-        const scaleFactor = remainingWeight / otherWeightsSum;
-  
-        updatedSystems.forEach((system, idx) => {
-          if (idx === systemIndex) {
-            system.weightage = newWeight;
-          } else {
-            const adjustedWeight = Math.round((parseInt(system.weightage) || 0) * scaleFactor);
-            system.weightage = adjustedWeight;
-          }
-        });
-  
-        // Handle rounding errors to ensure exact 100% total
-        let finalTotal = updatedSystems.reduce((sum, system) => sum + (parseInt(system.weightage) || 0), 0);
-        if (finalTotal !== 100) {
-          const difference = 100 - finalTotal;
-          // Add/subtract the difference to the largest weight that's not the currently edited one
-          let maxWeightIndex = systemIndex === 0 ? 1 : 0;
-          updatedSystems.forEach((system, idx) => {
-            if (idx !== systemIndex && (parseInt(system.weightage) || 0) > (parseInt(updatedSystems[maxWeightIndex].weightage) || 0)) {
-              maxWeightIndex = idx;
-            }
-          });
-          updatedSystems[maxWeightIndex].weightage += difference;
-        }
+        setTotalWeightError('');
       }
     } else {
       // Handle non-weightage fields (like leverage)
@@ -211,16 +207,38 @@ const PortfolioCalculatorForm = ({
         [field]: value,
       };
     }
-  
+
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
-  
+
   const handleDebtFundInputChange = (debtFundIndex, field, value) => {
     const updatedDebtFunds = [...(portfolioData.selected_debtfunds || [])];
-    updatedDebtFunds[debtFundIndex] = {
-      ...updatedDebtFunds[debtFundIndex],
-      [field]: value
-    };
+    if (field === 'weightage') {
+      // Parse input as integer
+      let newWeight = parseInt(value, 10);
+      if (isNaN(newWeight)) newWeight = 0;
+      newWeight = Math.min(Math.max(newWeight, 0), 100);
+
+      updatedDebtFunds[debtFundIndex] = {
+        ...updatedDebtFunds[debtFundIndex],
+        weightage: newWeight,
+      };
+
+      // Validate total weightage
+      const totalWeight = updatedDebtFunds.reduce((sum, fund) => sum + (parseInt(fund.weightage, 10) || 0), 0);
+      if (totalWeight !== 100) {
+        setTotalWeightError(`Total debt funds weightage is ${totalWeight}%. It should sum up to 100%.`);
+      } else {
+        setTotalWeightError('');
+      }
+    } else {
+      // Handle non-weightage fields (like leverage)
+      updatedDebtFunds[debtFundIndex] = {
+        ...updatedDebtFunds[debtFundIndex],
+        [field]: value,
+      };
+    }
+
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
   };
 
@@ -236,6 +254,34 @@ const PortfolioCalculatorForm = ({
   const benchmarkOptions = STRATEGIES.filter(
     (strategy) => strategy.group === "Index"
   );
+
+  // Validate total weightage on component mount/update
+  useEffect(() => {
+    if (portfolioData.selected_systems) {
+      const totalWeight = portfolioData.selected_systems.reduce(
+        (sum, system) => sum + (parseInt(system.weightage, 10) || 0),
+        0
+      );
+      if (totalWeight !== 100) {
+        // setTotalWeightError(`Total weightage is ${totalWeight}%. It should sum up to 100%.`);
+      } else {
+        setTotalWeightError('');
+      }
+    }
+
+    if (portfolioData.selected_debtfunds) {
+      const totalDebtWeight = portfolioData.selected_debtfunds.reduce(
+        (sum, fund) => sum + (parseInt(fund.weightage, 10) || 0),
+        0
+      );
+      if (totalDebtWeight !== 100) {
+        // setTotalWeightError(`Total debt funds weightage is ${totalDebtWeight}%. It should sum up to 100%.`);
+      } else {
+        setTotalWeightError('');
+      }
+    }
+  }, [portfolioData.selected_systems, portfolioData.selected_debtfunds]);
+
   return (
     <div className='border p-4 mb-4'>
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -286,9 +332,11 @@ const PortfolioCalculatorForm = ({
             </Col>
             <Col xs={12} md={4}>
               <InputGroup>
-              <Form.Control
+                <Form.Control
                   type="number"
                   min="0"
+                  max="100"
+                  step="1" // Ensure whole numbers
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
@@ -300,7 +348,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="0.1"
+                step="1" // Ensure whole numbers
                 placeholder="Leverage"
                 value={system.leverage}
                 onChange={(e) => handleSystemInputChange(sIndex, 'leverage', e.target.value)}
@@ -308,6 +356,7 @@ const PortfolioCalculatorForm = ({
             </Col>
           </Row>
         ))}
+        {totalWeightError && <Alert variant="warning">{totalWeightError}</Alert>}
       </Form.Group>
 
       {/* Choose Debt Funds */}
@@ -336,6 +385,8 @@ const PortfolioCalculatorForm = ({
                 <Form.Control
                   type="number"
                   min="0"
+                  max="100"
+                  step="1" // Ensure whole numbers
                   placeholder="Weightage"
                   value={debtfund.weightage}
                   onChange={(e) => handleDebtFundInputChange(dIndex, 'weightage', e.target.value)}
@@ -347,7 +398,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="0.1"
+                step="1" // Ensure whole numbers
                 placeholder="Leverage"
                 value={debtfund.leverage}
                 onChange={(e) => handleDebtFundInputChange(dIndex, 'leverage', e.target.value)}
@@ -376,6 +427,7 @@ const PortfolioCalculatorForm = ({
           ))}
         </Form.Control>
       </Form.Group>
+      
       {/* Investment Period */}
       <Form.Group className="mb-4">
         <Form.Label>Investment Period *</Form.Label>
@@ -421,13 +473,11 @@ const PortfolioCalculatorForm = ({
             <InputGroup>
               <InputGroup.Text>₹</InputGroup.Text>
               <Form.Control
-                  type="text"
-                  value={new Intl.NumberFormat('en-IN').format(portfolioData.invest_amount || '')} // Format for display
-                  onChange={(e) => handleInputChange('invest_amount', e.target.value)}
-                  placeholder="Investment Amount"
-                />
-
-
+                type="text"
+                value={new Intl.NumberFormat('en-IN').format(portfolioData.invest_amount || '')} // Format for display
+                onChange={(e) => handleInputChange('invest_amount', e.target.value)}
+                placeholder="Investment Amount"
+              />
             </InputGroup>
           </Col>
           <Col xs={12} md={6}>
@@ -436,7 +486,7 @@ const PortfolioCalculatorForm = ({
                 type="number"
                 min="0"
                 max="100"
-                step="0.1"
+                step="1" // Ensure whole numbers
                 value={portfolioData.cash_percent}
                 onChange={e => handleInputChange('cash_percent', e.target.value)}
                 placeholder="Cash Percentage"
@@ -481,13 +531,13 @@ PortfolioCalculatorForm.propTypes = {
     name: PropTypes.string,
     selected_systems: PropTypes.arrayOf(PropTypes.shape({
       system: PropTypes.string,
-      weightage: PropTypes.string,
+      weightage: PropTypes.number, // Changed to number for integer values
       leverage: PropTypes.string,
       column: PropTypes.string
     })),
     selected_debtfunds: PropTypes.arrayOf(PropTypes.shape({
       debtfund: PropTypes.string,
-      weightage: PropTypes.string,
+      weightage: PropTypes.number, // Changed to number for integer values
       leverage: PropTypes.string
     })),
     benchmark: PropTypes.string,
