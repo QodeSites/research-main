@@ -132,7 +132,21 @@ const IndicesPage = () => {
         fetchData();
     }, []);
 
+    const getDisplayValue = (returns, period, isQodeStrategy) => {
+        // Define the periods beyond which data should be hidden for Qode Strategies
+        const periodsToHideForQode = ['3M', '6M', '9M', '1Y', 'DD'];
+
+        if (isQodeStrategy && periodsToHideForQode.includes(period)) {
+            return '-';
+        }
+
+        return returns[period] !== '-' ? `${returns[period]}%` : '-';
+    };
+
     const renderIndicesTable = (indices, title) => {
+        const isQodeStrategy = title === 'Qode Strategies';
+        const allPeriods = ['1D', '2D', '3D', '1W', '1M', '3M', '6M', '9M', '1Y', 'DD'];
+
         return (
             <>
                 <h3 className="my-3 text-primary">{title}</h3>
@@ -142,16 +156,11 @@ const IndicesPage = () => {
                         <tr>
                             <th>S.No</th>
                             <th>Index</th>
-                            <th>1D Return</th>
-                            <th>2D Return</th>
-                            <th>3D Return</th>
-                            <th>1W Return</th>
-                            <th>1M Return</th>
-                            <th>3M Return</th>
-                            <th>6M Return</th>
-                            <th>9M Return</th>
-                            <th>1Y Return</th>
-                            <th>Drawdown</th>
+                            {allPeriods.map(period => (
+                                <th key={period}>
+                                    {period === 'DD' ? 'Drawdown' : `${period} Return`}
+                                </th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
@@ -159,36 +168,16 @@ const IndicesPage = () => {
                             <tr key={index}>
                                 <td>{idx + 1}</td>
                                 <td>{index}</td>
-                                <td className={returns['1D'] !== '-' && parseFloat(returns['1D']) < 0 ? 'text-danger' : ''}>
-                                    {returns['1D']}{returns['1D'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['2D'] !== '-' && parseFloat(returns['2D']) < 0 ? 'text-danger' : ''}>
-                                    {returns['2D']}{returns['2D'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['3D'] !== '-' && parseFloat(returns['3D']) < 0 ? 'text-danger' : ''}>
-                                    {returns['3D']}{returns['3D'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['1W'] !== '-' && parseFloat(returns['1W']) < 0 ? 'text-danger' : ''}>
-                                    {returns['1W']}{returns['1W'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['1M'] !== '-' && parseFloat(returns['1M']) < 0 ? 'text-danger' : ''}>
-                                    {returns['1M']}{returns['1M'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['3M'] !== '-' && parseFloat(returns['3M']) < 0 ? 'text-danger' : ''}>
-                                    {returns['3M']}{returns['3M'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['6M'] !== '-' && parseFloat(returns['6M']) < 0 ? 'text-danger' : ''}>
-                                    {returns['6M']}{returns['6M'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['9M'] !== '-' && parseFloat(returns['9M']) < 0 ? 'text-danger' : ''}>
-                                    {returns['9M']}{returns['9M'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['1Y'] !== '-' && parseFloat(returns['1Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['1Y']}{returns['1Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className="text-danger">
-                                    {returns['DD']}{returns['DD'] !== '-' ? '%' : ''}
-                                </td>
+                                {allPeriods.map(period => {
+                                    const value = getDisplayValue(returns, period, isQodeStrategy);
+                                    const isNegative = value !== '-' && parseFloat(returns[period]) < 0;
+                                    const cellClass = isNegative ? 'text-danger' : '';
+                                    return (
+                                        <td key={period} className={cellClass}>
+                                            {value}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </tbody>

@@ -118,11 +118,15 @@ const ClientTracker = () => {
     // Generic sort function
     const sortedData = (dataArray, sortConfig) => {
         if (!sortConfig.key) return dataArray;
-
+    
         const sorted = [...dataArray].sort((a, b) => {
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
-
+    
+            // Handle null or undefined values
+            if (aValue === null || aValue === undefined) return 1; // Place null/undefined at the end
+            if (bValue === null || bValue === undefined) return -1; // Place null/undefined at the end
+    
             // Handle different data types
             if (typeof aValue === 'number' && typeof bValue === 'number') {
                 return aValue - bValue;
@@ -131,14 +135,13 @@ const ClientTracker = () => {
                 return aValue.toString().localeCompare(bValue.toString());
             }
         });
-
+    
         if (sortConfig.direction === 'descending') {
             sorted.reverse();
         }
-
+    
         return sorted;
     };
-
     // Handle sorting for Portfolio Table
     const requestPortfolioSort = (key) => {
         let direction = 'ascending';

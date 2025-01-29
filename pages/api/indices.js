@@ -1,5 +1,6 @@
 import { calculateDrawdown, calculateReturns } from "utils/calculateReturns";
 import db from "lib/db";
+
 export default async function handler(req, res) {
     const { startDate, endDate } = req.body;
     
@@ -75,26 +76,50 @@ export default async function handler(req, res) {
 
         // Calculate returns for each index
         for (const [index, data] of Object.entries(groupedData)) {
+            // Pass the index code to calculateReturns for each period
             results[index] = {
-                '1D': calculateReturns(data, '1D'),
-                '2D': calculateReturns(data, '2D'),
-                '3D': calculateReturns(data, '3D'),
-                '1W': calculateReturns(data, '1W'),
-                '1M': calculateReturns(data, '1M'),
-                '3M': calculateReturns(data, '3M'),
-                '6M': calculateReturns(data, '6M'),
-                '9M': calculateReturns(data, '9M'),
-                '1Y': calculateReturns(data, '1Y'),
-                '2Y': calculateReturns(data, '2Y'),
-                '3Y': calculateReturns(data, '3Y'),
-                '4Y': calculateReturns(data, '4Y'),
-                '5Y': calculateReturns(data, '5Y'),
+                '1D': calculateReturns(data, '1D', index),
+                '2D': calculateReturns(data, '2D', index),
+                '3D': calculateReturns(data, '3D', index),
+                '1W': calculateReturns(data, '1W', index),
+                '1M': calculateReturns(data, '1M', index),
+                '3M': calculateReturns(data, '3M', index),
+                '6M': calculateReturns(data, '6M', index),
+                '9M': calculateReturns(data, '9M', index),
+                '1Y': calculateReturns(data, '1Y', index),
+                '2Y': calculateReturns(data, '2Y', index),
+                '3Y': calculateReturns(data, '3Y', index),
+                '4Y': calculateReturns(data, '4Y', index),
+                '5Y': calculateReturns(data, '5Y', index),
                 'Drawdown': calculateDrawdown(data)
             };
 
             // Add custom date range returns if available
             if (customDateResults[index]) {
                 results[index]['CDR'] = customDateResults[index];
+            }
+        }
+
+        // Add validation for custom date range data points
+        if (startDate && endDate) {
+            for (const [index, data] of Object.entries(groupedData)) {
+                const customDateData = data.filter(row => 
+                    new Date(row.date) >= new Date(startDate) && 
+                    new Date(row.date) <= new Date(endDate)
+                );
+
+                // Get required data points based on date range
+                const timeDiff = new Date(endDate) - new Date(startDate);
+                const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+                const requiredPoints = Math.floor(daysDiff * 0.8); // Assuming ~1 data point per trading day
+
+                // For strict validation indices, require more complete data
+                const isStrictIndex = ['QGF', 'QAW', 'QTF'].includes(index);
+                const minimumPoints = isStrictIndex ? requiredPoints : Math.floor(requiredPoints * 0.8);
+
+                if (customDateData.length < minimumPoints) {
+                    results[index]['CDR'] = '-';
+                }
             }
         }
 
