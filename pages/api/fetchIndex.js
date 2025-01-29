@@ -7,7 +7,7 @@ export default async function handler(req, res) {
             SELECT DISTINCT ON (indices)
                 indices,
                 nav,
-                date AT TIME ZONE 'UTC' AS date,
+                date AT TIME ZONE 'Asia/Kolkata' AS date,
                 direction,
                 net_change,
                 MAX(nav) OVER (PARTITION BY indices) AS peak,
