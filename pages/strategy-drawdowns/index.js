@@ -28,6 +28,7 @@ const IndexTable = () => {
     const [lastFetchTime, setLastFetchTime] = useState(null);
 
     // Define the indices for each category in the desired order
+    const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
         'NIFTY 50',
         'NIFTY 500',
@@ -36,6 +37,12 @@ const IndexTable = () => {
         'NIFTY MIDCAP 100',
         'NIFTY SMLCAP 250',
         // 'NSE:NIFTY MICROCAP250'
+    ];
+    const strategyIndices = [
+        'NIFTYM150MOMNTM50',
+        'NIFTY100 LOWVOL30',
+        'NIFTY200MOMENTM30',
+        'GOLDBEES'
     ];
 
     const sectoralIndices = [
@@ -73,7 +80,15 @@ const IndexTable = () => {
             .map(index => dataMap.get(index))
             .filter(item => item !== undefined);
 
-        return { broadBased, sectoral };
+        const strategy = strategyIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
+
+        const qodeStrategies = qodeStrategyIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
+
+        return { broadBased, sectoral, strategy, qodeStrategies };
     };
 
     const fetchIndices = async () => {
@@ -405,6 +420,45 @@ const IndexTable = () => {
                             Export to Excel
                         </Button>
                     </div>
+                    {/* Broad Based Indices */}
+                    {segregatedData.qodeStrategies.length > 0 && (
+                        <>
+                                <h3 className="my-3 text-primary">Qode Strategies</h3>
+                                {/* Data As Of label for Broad Based Indices */}
+                                {date && (
+                                    <p className="text-muted">
+                                        Data as of: {date}
+                                    </p>
+                                )}
+                                <Table bordered striped responsive className="elegant-table">
+                                    <thead className="table-header">
+                                        {renderTableHeader()}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.qodeStrategies)}
+                                    </tbody>
+                                </Table>
+                        </>
+                    )}
+                    {segregatedData.strategy.length > 0 && (
+                        <>
+                            <h3 className="my-3 text-primary">Strategy Indices</h3>
+                            {/* Data As Of label for Broad Based Indices */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <Table bordered striped responsive className="elegant-table">
+                                <thead className="table-header">
+                                    {renderTableHeader()}
+                                </thead>
+                                <tbody>
+                                    {renderTableRows(segregatedData.strategy)}
+                                </tbody>
+                            </Table>
+                        </>
+                    )}
                     {/* Broad Based Indices */}
                     {segregatedData.broadBased.length > 0 && (
                         <>

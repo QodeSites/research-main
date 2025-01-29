@@ -32,7 +32,7 @@ const ClientTracker = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('/api/ClientTracker'); 
+                const response = await fetch('/api/ClientTracker');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -76,7 +76,7 @@ const ClientTracker = () => {
             current_drawdown: convertToNumber(item.current_drawdown)
         }));
     };
-    
+
     const formatNumber = (value) => {
         if (value === null || value === "NaN" || value === undefined) return "-";
         return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -90,7 +90,7 @@ const ClientTracker = () => {
         // Define ideal cash percentage range (e.g., 5-15% might be ideal)
         const idealLow = 0;
         const idealHigh = 15;
-        
+
         // RGB values for different ranges
         if (value <= idealLow) {
             // Dark green (ideal) to yellow-green
@@ -219,20 +219,77 @@ const ClientTracker = () => {
         });
     }, [sortedReturnsData, debouncedReturnsSearch]);
 
+    const calculatePortfolioTotals = (data) => {
+        return data.reduce((acc, item) => ({
+            portfolio_value: (acc.portfolio_value || 0) + (convertToNumber(item.portfolio_value) || 0),
+            cash: (acc.cash || 0) + (convertToNumber(item.cash) || 0),
+            derivatives_percentage: (acc.derivatives_percentage || 0) + (convertToNumber(item.derivatives_percentage) || 0),
+        }), {});
+    };
+
+    // Calculate totals for returns data (averages for percentage values)
+    const calculateReturnsTotals = (data) => {
+        const count = data.length;
+        return data.reduce((acc, item) => ({
+            d10: (acc.d10 || 0) + (convertToNumber(item.d10) || 0),
+            m1: (acc.m1 || 0) + (convertToNumber(item.m1) || 0),
+            m3: (acc.m3 || 0) + (convertToNumber(item.m3) || 0),
+            m6: (acc.m6 || 0) + (convertToNumber(item.m6) || 0),
+            y1: (acc.y1 || 0) + (convertToNumber(item.y1) || 0),
+            y2: (acc.y2 || 0) + (convertToNumber(item.y2) || 0),
+            y5: (acc.y5 || 0) + (convertToNumber(item.y5) || 0),
+            since_inception: (acc.since_inception || 0) + (convertToNumber(item.since_inception) || 0),
+            mdd: (acc.mdd || 0) + (convertToNumber(item.mdd) || 0),
+            current_drawdown: (acc.current_drawdown || 0) + (convertToNumber(item.current_drawdown) || 0),
+            count,
+        }), {});
+    };
+
+    // Calculate the portfolio totals memoized
+    const portfolioTotals = useMemo(() => {
+        const totals = calculatePortfolioTotals(filteredPortfolioData);
+        const totalPortfolioValue = totals.portfolio_value || 0;
+        return {
+            ...totals,
+            cash_percentage: totalPortfolioValue ? (totals.cash / totalPortfolioValue) * 100 : 0,
+            derivatives_percentage: totals.derivatives_percentage / (filteredPortfolioData.length || 1), // Average for derivatives
+        };
+    }, [filteredPortfolioData]);
+
+    // Calculate the returns totals memoized
+    const returnsTotals = useMemo(() => {
+        const totals = calculateReturnsTotals(filteredReturnsData);
+        const count = totals.count || 1;
+        return {
+            d10: totals.d10 / count,
+            m1: totals.m1 / count,
+            m3: totals.m3 / count,
+            m6: totals.m6 / count,
+            y1: totals.y1 / count,
+            y2: totals.y2 / count,
+            y5: totals.y5 / count,
+            since_inception: totals.since_inception / count,
+            mdd: totals.mdd / count,
+            current_drawdown: totals.current_drawdown / count,
+        };
+    }, [filteredReturnsData]);
+
+
+
     return (
         <div className="m-6">
             <h1 className="mb-4">Client Tracker</h1>
-            
+
             {/* Toggle Buttons */}
             <div className="mb-3">
-                <Button 
+                <Button
                     variant={activeView === 'portfolio' ? 'primary' : 'outline-primary'}
                     className="me-2"
                     onClick={() => setActiveView('portfolio')}
                 >
                     Portfolio Details
                 </Button>
-                <Button 
+                <Button
                     variant={activeView === 'returns' ? 'primary' : 'outline-primary'}
                     onClick={() => setActiveView('returns')}
                 >
@@ -294,25 +351,43 @@ const ClientTracker = () => {
                         </thead>
                         <tbody>
                             {filteredPortfolioData.length > 0 ? (
-                                filteredPortfolioData.map((item, index) => (
-                                    <tr key={index}>
-                                        <td>{item.name}</td>
-                                        <td>{item.nuvama_code}</td>
-                                        <td>{item.account}</td>
-                                        <td>{formatNumber(item.portfolio_value)}</td>
-                                        <td>{formatNumber(item.cash)}</td>
-                                        <td style={{ 
-                                            backgroundColor: getCashPercentageColor(item.cash_percentage),
-                                            color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
+                                <>
+                                    {filteredPortfolioData.map((item, index) => (
+                                        <tr key={index}>
+                                            <td>{item.name}</td>
+                                            <td>{item.nuvama_code}</td>
+                                            <td>{item.account}</td>
+                                            <td>{formatNumber(item.portfolio_value)}</td>
+                                            <td>{formatNumber(item.cash)}</td>
+                                            <td style={{
+                                                backgroundColor: getCashPercentageColor(item.cash_percentage),
+                                                color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
+                                                fontWeight: 'bold',
+                                                textAlign: 'center',
+                                                padding: '8px'
+                                            }}>
+                                                {formatNumber(item.cash_percentage)}%
+                                            </td>
+                                            <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
+                                        </tr>
+
+                                    ))}
+                                    <tr className="font-bold bg-gray-100">
+                                        <td colSpan="3">Total / Average ({filteredPortfolioData.length} clients)</td>
+                                        <td>{formatNumber(portfolioTotals.portfolio_value)}</td>
+                                        <td>{formatNumber(portfolioTotals.cash)}</td>
+                                        <td style={{
+                                            backgroundColor: getCashPercentageColor(portfolioTotals.cash_percentage),
+                                            color: portfolioTotals.cash_percentage > 30 ? 'white' : 'black',
                                             fontWeight: 'bold',
                                             textAlign: 'center',
                                             padding: '8px'
                                         }}>
-                                            {formatNumber(item.cash_percentage)}%
+                                            {formatNumber(portfolioTotals.cash_percentage)}%
                                         </td>
-                                        <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
+                                        <td>{formatNumber(portfolioTotals.derivatives_percentage)}%</td>
                                     </tr>
-                                ))
+                                </>
                             ) : (
                                 <tr>
                                     <td colSpan="7" className="text-center">
@@ -385,7 +460,9 @@ const ClientTracker = () => {
                         </thead>
                         <tbody>
                             {filteredReturnsData.length > 0 ? (
-                                filteredReturnsData.map((item, index) => (
+                                <>
+                                
+                                {filteredReturnsData.map((item, index) => (
                                     <tr key={index}>
                                         <td>{item.name}</td>
                                         <td>{item.nuvama_code}</td>
@@ -401,7 +478,21 @@ const ClientTracker = () => {
                                         <td>{formatNumber(item.mdd)}%</td>
                                         <td>{formatNumber(item.current_drawdown)}%</td>
                                     </tr>
-                                ))
+                                ))}
+                                 <tr className="font-bold bg-gray-100">
+                                        <td colSpan="3">Average ({filteredReturnsData.length} clients)</td>
+                                        <td>{formatNumber(returnsTotals.d10)}%</td>
+                                        <td>{formatNumber(returnsTotals.m1)}%</td>
+                                        <td>{formatNumber(returnsTotals.m3)}%</td>
+                                        <td>{formatNumber(returnsTotals.m6)}%</td>
+                                        <td>{formatNumber(returnsTotals.y1)}%</td>
+                                        <td>{formatNumber(returnsTotals.y2)}%</td>
+                                        <td>{formatNumber(returnsTotals.y5)}%</td>
+                                        <td>{formatNumber(returnsTotals.since_inception)}%</td>
+                                        <td>{formatNumber(returnsTotals.mdd)}%</td>
+                                        <td>{formatNumber(returnsTotals.current_drawdown)}%</td>
+                                    </tr>
+                                </>
                             ) : (
                                 <tr>
                                     <td colSpan="13" className="text-center">
