@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Container, Table, Spinner, Alert } from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
+import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa'; // For sort icons
 
 const IndicesPage = () => {
     const [indicesData, setIndicesData] = useState(null);
     const [dataAsOf, setDataAsOf] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Sorting states for each table
+    const [sortConfigQode, setSortConfigQode] = useState({ key: null, direction: 'asc' });
+    const [sortConfigBroad, setSortConfigBroad] = useState({ key: null, direction: 'asc' });
+    const [sortConfigStrategy, setSortConfigStrategy] = useState({ key: null, direction: 'asc' });
+    const [sortConfigSectoral, setSortConfigSectoral] = useState({ key: null, direction: 'asc' });
 
     const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
@@ -143,48 +150,111 @@ const IndicesPage = () => {
         return returns[period] !== '-' ? `${returns[period]}%` : '-';
     };
 
-    const renderIndicesTable = (indices, title) => {
+    const handleSort = (sortConfig, setSortConfig, key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedIndices = (indices, sortConfig) => {
+        if (!sortConfig.key) return indices;
+
+        const sortedEntries = [...Object.entries(indices)].sort((a, b) => {
+            const aValue = a[1][sortConfig.key];
+            const bValue = b[1][sortConfig.key];
+
+            // Handle '-' as null or 0
+            const aNum = aValue === '-' ? (sortConfig.key === 'DD' ? 0 : 0) : parseFloat(aValue);
+            const bNum = bValue === '-' ? (sortConfig.key === 'DD' ? 0 : 0) : parseFloat(bValue);
+
+            if (aNum < bNum) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aNum > bNum) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return Object.fromEntries(sortedEntries);
+    };
+
+    const renderSortIcon = (sortConfig, key) => {
+        if (sortConfig.key !== key) {
+            return <FaSort />;
+        }
+        if (sortConfig.direction === 'asc') {
+            return <FaSortUp />;
+        }
+        return <FaSortDown />;
+    };
+
+    const renderIndicesTable = (indices, title, sortConfig, setSortConfig) => {
         const isQodeStrategy = title === 'Qode Strategies';
         const allPeriods = ['1D', '2D', '3D', '1W', '1M', '3M', '6M', '9M', '1Y', 'DD'];
-
+    
+        // Apply sorting
+        const sorted = sortedIndices(indices, sortConfig);
+    
         return (
             <>
                 <h3 className="my-3 text-primary">{title}</h3>
                 {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-                <Table striped bordered hover responsive>
-                    <thead>
-                        <tr>
-                            <th>S.No</th>
-                            <th>Index</th>
-                            {allPeriods.map(period => (
-                                <th key={period}>
-                                    {period === 'DD' ? 'Drawdown' : `${period} Return`}
-                                </th>
+                <div className="table-container">
+                    <Table striped bordered hover responsive className="table-fixed">
+                        <colgroup>
+                            <col style={{ width: '60px' }} /> {/* S.No column */}
+                            <col style={{ width: '200px' }} /> {/* Index column */}
+                            {allPeriods.map(() => (
+                                <col key={Math.random()} style={{ width: '100px' }} /> // Period columns
                             ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {Object.entries(indices).map(([index, returns], idx) => (
-                            <tr key={index}>
-                                <td>{idx + 1}</td>
-                                <td>{index}</td>
-                                {allPeriods.map(period => {
-                                    const value = getDisplayValue(returns, period, isQodeStrategy);
-                                    const isNegative = value !== '-' && parseFloat(returns[period]) < 0;
-                                    const cellClass = isNegative ? 'text-danger' : '';
-                                    return (
-                                        <td key={period} className={cellClass}>
-                                            {value}
-                                        </td>
-                                    );
-                                })}
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th className="sticky-header fixed-width s-no-column">S.No</th>
+                                <th className="sticky-header index-column">
+                                    Index
+                                    {/* Index column is not sortable */}
+                                </th>
+                                {allPeriods.map(period => (
+                                    <th
+                                        key={period}
+                                        className="sticky-header fixed-width"
+                                        onClick={() => handleSort(sortConfig, setSortConfig, period === 'DD' ? 'DD' : period)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        {period === 'DD' ? 'Drawdown' : `${period} Return`} {renderSortIcon(sortConfig, period === 'DD' ? 'DD' : period)}
+                                    </th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </Table>
+                        </thead>
+                        <tbody>
+                            {Object.entries(sorted).map(([index, returns], idx) => (
+                                <tr key={index}>
+                                    <td className="sticky-column fixed-width s-no-column">{idx + 1}</td>
+                                    <td className="sticky-column index-column">{index}</td>
+                                    {allPeriods.map(period => {
+                                        const value = getDisplayValue(returns, period, isQodeStrategy);
+                                        const numericValue = parseFloat(returns[period]);
+                                        const isNegative = value !== '-' && !isNaN(numericValue) && numericValue < 0;
+                                        const cellClass = isNegative ? 'text-danger' : '';
+                                        return (
+                                            <td key={period} className={cellClass + ' fixed-width'}>
+                                                {value}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </div>
             </>
         );
     };
+    
 
     if (loading) {
         return (
@@ -207,10 +277,10 @@ const IndicesPage = () => {
     return (
         <div className="p-4">
             <h1 className="mb-4">Indices Returns</h1>
-            {renderIndicesTable(qodeStrategies, 'Qode Strategies')}
-            {renderIndicesTable(broadBased, 'Broad Based Indices')}
-            {renderIndicesTable(strategy, 'Strategy Indices')}
-            {renderIndicesTable(sectoral, 'Sectoral Indices')}
+            {renderIndicesTable(qodeStrategies, 'Qode Strategies', sortConfigQode, setSortConfigQode)}
+            {renderIndicesTable(broadBased, 'Broad Based Indices', sortConfigBroad, setSortConfigBroad)}
+            {renderIndicesTable(strategy, 'Strategy Indices', sortConfigStrategy, setSortConfigStrategy)}
+            {renderIndicesTable(sectoral, 'Sectoral Indices', sortConfigSectoral, setSortConfigSectoral)}
         </div>
     );
 };

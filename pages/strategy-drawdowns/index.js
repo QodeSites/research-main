@@ -33,10 +33,8 @@ const IndexTable = () => {
         'NIFTY 50',
         'NIFTY 500',
         'NIFTY NEXT 50',
-        //SE:NIFTY 100',
         'NIFTY MIDCAP 100',
         'NIFTY SMLCAP 250',
-        // 'NSE:NIFTY MICROCAP250'
     ];
     const strategyIndices = [
         'NIFTYM150MOMNTM50',
@@ -59,7 +57,7 @@ const IndexTable = () => {
         'NIFTY REALTY',
         'NIFTY HEALTHCARE',
         'NIFTY CONSR DURBL',
-        'NIFTY NIFTY OIL AND GAS',
+        'NIFTY OIL AND GAS',
         'NIFTY COMMODITIES',
         'NIFTY CONSUMPTION',
         'NIFTY CPSE',
@@ -201,12 +199,10 @@ const IndexTable = () => {
         fetchIndices();
     }, []);
 
-
-
     // Function to render table headers (including serial number column)
     const renderTableHeader = () => (
         <tr>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')}>
+            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')} className="s-no-column">
                 S.No {renderSortIcon('serialNo')}
             </th>
             <th style={{ cursor: 'pointer' }} onClick={() => requestSort('indices')}>
@@ -240,7 +236,7 @@ const IndexTable = () => {
     const renderTableRows = (items) => (
         items.map((item, index) => (
             <tr key={index} className="table-row">
-                <td>{index + 1}</td> {/* Serial Number */}
+                <td className="s-no-column">{index + 1}</td> {/* Serial Number */}
                 <td>
                     {item.indices} &nbsp;
                     {item.direction === 'UP' ? (
@@ -350,7 +346,6 @@ const IndexTable = () => {
         ))
     );
 
-
     const exportToExcel = () => {
         // Create a new workbook
         const workbook = XLSX.utils.book_new();
@@ -369,15 +364,19 @@ const IndexTable = () => {
             }));
         };
 
-        // Transform Broad Based Indices
-        const broadBasedData = transformData(segregatedData.broadBased);
-        const broadBasedWorksheet = XLSX.utils.json_to_sheet(broadBasedData);
-        XLSX.utils.book_append_sheet(workbook, broadBasedWorksheet, 'Broad Based Indices');
+        // Transform each category's data
+        const categories = [
+            { data: segregatedData.qodeStrategies, name: 'Qode Strategies' },
+            { data: segregatedData.strategy, name: 'Strategy Indices' },
+            { data: segregatedData.broadBased, name: 'Broad Based Indices' },
+            { data: segregatedData.sectoral, name: 'Sectoral Indices' },
+        ];
 
-        // Transform Sectoral Indices
-        const sectoralData = transformData(segregatedData.sectoral);
-        const sectoralWorksheet = XLSX.utils.json_to_sheet(sectoralData);
-        XLSX.utils.book_append_sheet(workbook, sectoralWorksheet, 'Sectoral Indices');
+        categories.forEach(category => {
+            const transformedData = transformData(category.data);
+            const worksheet = XLSX.utils.json_to_sheet(transformedData);
+            XLSX.utils.book_append_sheet(workbook, worksheet, category.name);
+        });
 
         // Generate buffer
         const workbookOut = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -388,7 +387,6 @@ const IndexTable = () => {
         // Trigger the download
         saveAs(blob, 'IndicesDrawdowns.xlsx');
     };
-
 
     if (isLoading) {
         return (
@@ -420,17 +418,28 @@ const IndexTable = () => {
                             Export to Excel
                         </Button>
                     </div>
-                    {/* Broad Based Indices */}
+                    {/* Qode Strategies */}
                     {segregatedData.qodeStrategies.length > 0 && (
                         <>
-                                <h3 className="my-3 text-primary">Qode Strategies</h3>
-                                {/* Data As Of label for Broad Based Indices */}
-                                {date && (
-                                    <p className="text-muted">
-                                        Data as of: {date}
-                                    </p>
-                                )}
-                                <Table bordered striped responsive className="elegant-table">
+                            <h3 className="my-3 text-primary">Qode Strategies</h3>
+                            {/* Data As Of label */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
                                     <thead className="table-header">
                                         {renderTableHeader()}
                                     </thead>
@@ -438,66 +447,103 @@ const IndexTable = () => {
                                         {renderTableRows(segregatedData.qodeStrategies)}
                                     </tbody>
                                 </Table>
+                            </div>
                         </>
                     )}
+                    {/* Strategy Indices */}
                     {segregatedData.strategy.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Strategy Indices</h3>
-                            {/* Data As Of label for Broad Based Indices */}
+                            {/* Data As Of label */}
                             {date && (
                                 <p className="text-muted">
                                     Data as of: {date}
                                 </p>
                             )}
-                            <Table bordered striped responsive className="elegant-table">
-                                <thead className="table-header">
-                                    {renderTableHeader()}
-                                </thead>
-                                <tbody>
-                                    {renderTableRows(segregatedData.strategy)}
-                                </tbody>
-                            </Table>
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader()}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.strategy)}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </>
                     )}
                     {/* Broad Based Indices */}
                     {segregatedData.broadBased.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Broad Based Indices</h3>
-                            {/* Data As Of label for Broad Based Indices */}
+                            {/* Data As Of label */}
                             {date && (
                                 <p className="text-muted">
                                     Data as of: {date}
                                 </p>
                             )}
-                            <Table bordered striped responsive className="elegant-table">
-                                <thead className="table-header">
-                                    {renderTableHeader()}
-                                </thead>
-                                <tbody>
-                                    {renderTableRows(segregatedData.broadBased)}
-                                </tbody>
-                            </Table>
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader()}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.broadBased)}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </>
                     )}
-
                     {/* Sectoral Indices */}
                     {segregatedData.sectoral.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Sectoral Indices</h3>
-                            {/* Data As Of label for Sectoral Indices */}
+                            {/* Data As Of label */}
                             {date && (
                                 <p className="text-muted">
                                     Data as of: {date}
                                 </p>
                             )}
-                            <Table bordered striped responsive className="elegant-table">
-                                <thead className="table-header">
-                                    {renderTableHeader()}
-                                </thead>
-                                <tbody>
-                                    {renderTableRows(segregatedData.sectoral)}
-                                </tbody>
-                            </Table>
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader()}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.sectoral)}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </>
                     )}
                 </>

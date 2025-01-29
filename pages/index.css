@@ -2,3 +2,145 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* indicesPage.css */
+
+.table-container {
+    overflow-x: auto;
+}
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 2;
+}
+
+.sticky-column {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.fixed-width {
+    min-width: 100px;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.index-column {
+    min-width: 150px;
+    max-width: 400px;
+}
+
+/* indexTable.css */
+
+.table-container {
+    overflow-x: auto;
+}
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 2;
+}
+
+.sticky-column {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.table-fixed {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.s-no-column {
+    text-align: center;
+}
+
+.index-column {
+    /* Define a consistent width for the Index column */
+    width: 200px;
+}
+
+.fixed-width {
+    /* Define a consistent width for other columns */
+    width: 100px;
+}
+
+.elegant-table th,
+.elegant-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Optional: Adjust font sizes and padding for better readability */
+.elegant-table th,
+.elegant-table td {
+    padding: 8px 12px;
+}
+
+
+/* returnsComparisonPage.css */
+
+.table-container {
+    overflow-x: auto;
+}
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 2;
+}
+
+.sticky-column {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.table-fixed {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.s-no-column {
+    text-align: center;
+    width: 60px; /* Consistent width for Serial Number */
+}
+
+.index-column {
+    width: 200px; /* Consistent width for Index column */
+}
+
+.fixed-width {
+    width: 100px; /* Consistent width for other columns */
+}
+
+.elegant-table th,
+.elegant-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px 12px; /* Optional: Adjust padding for better readability */
+}
+
+.elegant-table th {
+    background-color: #f8f9fa; /* Optional: Header background color */
+    font-weight: bold;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}

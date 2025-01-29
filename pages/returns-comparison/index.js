@@ -10,6 +10,14 @@ const ReturnsComparisonPage = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
+    // Sorting configuration for each table
+    const [sortConfig, setSortConfig] = useState({
+        qodeStrategies: { key: null, direction: 'asc' },
+        broadBased: { key: null, direction: 'asc' },
+        strategy: { key: null, direction: 'asc' },
+        sectoral: { key: null, direction: 'asc' },
+    });
+
     // Define the indices categories (same as IndicesPage)
     const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
@@ -77,7 +85,7 @@ const ReturnsComparisonPage = () => {
             segregated.sectoral[index] = createDefaultReturns();
         });
 
-        // Populate with actual data
+        // Populate with actual data, excluding qodeStrategies
         if (data) {
             Object.entries(data).forEach(([index, returns]) => {
                 const processedReturns = {
@@ -89,15 +97,14 @@ const ReturnsComparisonPage = () => {
                     'CDR': returns['CDR'] || '-'
                 };
 
-                if (qodeStrategyIndices.includes(index)) {
-                    segregated.qodeStrategies[index] = processedReturns;
-                } else if (broadBasedIndices.includes(index)) {
+                if (broadBasedIndices.includes(index)) {
                     segregated.broadBased[index] = processedReturns;
                 } else if (strategyIndices.includes(index)) {
                     segregated.strategy[index] = processedReturns;
                 } else if (sectoralIndices.includes(index)) {
                     segregated.sectoral[index] = processedReturns;
                 }
+                // Intentionally exclude qodeStrategyIndices to keep them as '-'
             });
         }
 
@@ -144,51 +151,157 @@ const ReturnsComparisonPage = () => {
         fetchData();
     };
 
-    const renderIndicesTable = (indices, title) => {
+    const handleSort = (tableType, key) => {
+        setSortConfig(prevConfig => {
+            const currentConfig = prevConfig[tableType];
+            let direction = 'asc';
+            if (currentConfig.key === key && currentConfig.direction === 'asc') {
+                direction = 'desc';
+            }
+            return {
+                ...prevConfig,
+                [tableType]: { key, direction }
+            };
+        });
+    };
+
+    const getSortedIndices = (indices, tableType) => {
+        const { key, direction } = sortConfig[tableType];
+        if (!key) return indices;
+
+        const sortedEntries = [...Object.entries(indices)];
+
+        sortedEntries.sort((a, b) => {
+            let aValue, bValue;
+
+            if (key === 'Index') {
+                aValue = a[0].toUpperCase();
+                bValue = b[0].toUpperCase();
+                if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+                return 0;
+            } else {
+                aValue = a[1][key] === '-' ? null : parseFloat(a[1][key]);
+                bValue = b[1][key] === '-' ? null : parseFloat(b[1][key]);
+
+                if (aValue === null && bValue === null) return 0;
+                if (aValue === null) return 1;
+                if (bValue === null) return -1;
+
+                if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+        });
+
+        return Object.fromEntries(sortedEntries);
+    };
+
+    const renderSortIndicator = (tableType, columnKey) => {
+        const { key, direction } = sortConfig[tableType];
+        if (key !== columnKey) return null;
+        return direction === 'asc' ? ' ▲' : ' ▼';
+    };
+
+    const renderIndicesTable = (indices, title, tableType) => {
+        const sortedIndices = getSortedIndices(indices, tableType);
+
         return (
             <>
                 <h3 className="my-3 text-primary">{title}</h3>
                 {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-                <Table striped bordered hover responsive>
-                    <thead>
-                        <tr>
-                            <th>S.No</th>
-                            <th>Index</th>
-                            <th>1Y Return</th>
-                            <th>2Y Return</th>
-                            <th>3Y Return</th>
-                            <th>4Y Return</th>
-                            <th>5Y Return</th>
-                            <th>Custom Date Range</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {Object.entries(indices).map(([index, returns], idx) => (
-                            <tr key={index}>
-                                <td>{idx + 1}</td>
-                                <td>{index}</td>
-                                <td className={returns['1Y'] !== '-' && parseFloat(returns['1Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['1Y']}{returns['1Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['2Y'] !== '-' && parseFloat(returns['2Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['2Y']}{returns['2Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['3Y'] !== '-' && parseFloat(returns['3Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['3Y']}{returns['3Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['4Y'] !== '-' && parseFloat(returns['4Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['4Y']}{returns['4Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['5Y'] !== '-' && parseFloat(returns['5Y']) < 0 ? 'text-danger' : ''}>
-                                    {returns['5Y']}{returns['5Y'] !== '-' ? '%' : ''}
-                                </td>
-                                <td className={returns['CDR'] !== '-' && parseFloat(returns['CDR']) < 0 ? 'text-danger' : ''}>
-                                    {returns['CDR']}{returns['CDR'] !== '-' ? '%' : ''}
-                                </td>
+                <div className="table-container">
+                    <Table striped bordered hover responsive className="elegant-table table-fixed">
+                        <colgroup>
+                            <col style={{ width: '50px' }} /> {/* S.No column */}
+                            <col style={{ width: '200px' }} /> {/* Index column */}
+                            <col style={{ width: '100px' }} /> {/* 1Y Return */}
+                            <col style={{ width: '100px' }} /> {/* 2Y Return */}
+                            <col style={{ width: '100px' }} /> {/* 3Y Return */}
+                            <col style={{ width: '100px' }} /> {/* 4Y Return */}
+                            <col style={{ width: '100px' }} /> {/* 5Y Return */}
+                            <col style={{ width: '100px' }} /> {/* CDR */}
+                        </colgroup>
+                        <thead className="sticky-header">
+                            <tr>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, 'S.No')}
+                                >
+                                    S.No{renderSortIndicator(tableType, 'S.No')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, 'Index')}
+                                >
+                                    Index{renderSortIndicator(tableType, 'Index')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, '1Y')}
+                                >
+                                    1Y Return{renderSortIndicator(tableType, '1Y')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, '2Y')}
+                                >
+                                    2Y Return{renderSortIndicator(tableType, '2Y')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, '3Y')}
+                                >
+                                    3Y Return{renderSortIndicator(tableType, '3Y')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, '4Y')}
+                                >
+                                    4Y Return{renderSortIndicator(tableType, '4Y')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, '5Y')}
+                                >
+                                    5Y Return{renderSortIndicator(tableType, '5Y')}
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort(tableType, 'CDR')}
+                                >
+                                    CDR{renderSortIndicator(tableType, 'CDR')}
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </Table>
+                        </thead>
+                        <tbody>
+                            {Object.entries(sortedIndices).map(([index, returns], idx) => (
+                                <tr key={index}>
+                                    <td className="s-no-column">{idx + 1}</td>
+                                    <td className="index-column">{index}</td>
+                                    <td className={returns['1Y'] !== '-' && parseFloat(returns['1Y']) < 0 ? 'text-danger' : ''}>
+                                        {returns['1Y']}{returns['1Y'] !== '-' ? '%' : ''}
+                                    </td>
+                                    <td className={returns['2Y'] !== '-' && parseFloat(returns['2Y']) < 0 ? 'text-danger' : ''}>
+                                        {returns['2Y']}{returns['2Y'] !== '-' ? '%' : ''}
+                                    </td>
+                                    <td className={returns['3Y'] !== '-' && parseFloat(returns['3Y']) < 0 ? 'text-danger' : ''}>
+                                        {returns['3Y']}{returns['3Y'] !== '-' ? '%' : ''}
+                                    </td>
+                                    <td className={returns['4Y'] !== '-' && parseFloat(returns['4Y']) < 0 ? 'text-danger' : ''}>
+                                        {returns['4Y']}{returns['4Y'] !== '-' ? '%' : ''}
+                                    </td>
+                                    <td className={returns['5Y'] !== '-' && parseFloat(returns['5Y']) < 0 ? 'text-danger' : ''}>
+                                        {returns['5Y']}{returns['5Y'] !== '-' ? '%' : ''}
+                                    </td>
+                                    <td className={returns['CDR'] !== '-' && parseFloat(returns['CDR']) < 0 ? 'text-danger' : ''}>
+                                        {returns['CDR']}{returns['CDR'] !== '-' ? '%' : ''}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </div>
             </>
         );
     };
@@ -249,10 +362,10 @@ const ReturnsComparisonPage = () => {
                 </Row>
             </Form>
 
-            {renderIndicesTable(qodeStrategies, 'Qode Strategies')}
-            {renderIndicesTable(broadBased, 'Broad Based Indices')}
-            {renderIndicesTable(strategy, 'Strategy Indices')}
-            {renderIndicesTable(sectoral, 'Sectoral Indices')}
+            {renderIndicesTable(qodeStrategies, 'Qode Strategies', 'qodeStrategies')}
+            {renderIndicesTable(broadBased, 'Broad Based Indices', 'broadBased')}
+            {renderIndicesTable(strategy, 'Strategy Indices', 'strategy')}
+            {renderIndicesTable(sectoral, 'Sectoral Indices', 'sectoral')}
         </div>
     );
 };
