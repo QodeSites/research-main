@@ -66,6 +66,45 @@ const DEBTFUNDS = [
   { label: "QGF", value: "QGF" },
   { label: "QAW", value: "QAW" },
   { label: "QVF", value: "QVF" },
+  { label: "Qode All Weather", value: "QAW", group: "Qode Strategies" },
+  { label: "Qode Growth Fund", value: "QGF", group: "Qode Strategies" },
+  { label: "Qode All Weather - 1", value: "QAW1", group: "Qode Strategies" },
+  { label: "Qode Tactical Fund", value: "QVF", group: "Qode Strategies" },
+  { label: "NSE Momentum Index", value: "NSE Momentum Index", group: "Index" },
+  { label: "Gold Bees", value: "Gold Bees", group: "Index" },
+  { label: "NIFTY METAL", value: "NIFTY METAL", group: "Index" },
+  { label: "NIFTY INFRA", value: "NIFTY INFRA", group: "Index" },
+  { label: "NIFTY MNC", value: "NIFTY MNC", group: "Index" },
+  { label: "NIFTY ENERGY", value: "NIFTY ENERGY", group: "Index" },
+  { label: "NIFTY CONSR DURBL", value: "NIFTY CONSR DURBL", group: "Index" },
+  { label: "NIFTY CONSUMPTION", value: "NIFTY CONSUMPTION", group: "Index" },
+  { label: "NIFTY 50", value: "NIFTY 50", group: "Index" },
+  { label: "NIFTY IT", value: "NIFTY IT", group: "Index" },
+  { label: "NIFTY COMMODITIES", value: "NIFTY COMMODITIES", group: "Index" },
+  { label: "NIFTY AUTO", value: "NIFTY AUTO", group: "Index" },
+  { label: "NIFTY PVT BANK", value: "NIFTY PVT BANK", group: "Index" },
+  { label: "NIFTY MICROCAP250", value: "NIFTY MICROCAP250", group: "Index" },
+  { label: "BSE500", value: "BSE500", group: "Index" },
+  { label: "NIFTY MEDIA", value: "NIFTY MEDIA", group: "Index" },
+  { label: "NIFTY CPSE", value: "NIFTY CPSE", group: "Index" },
+  { label: "NIFTY PSU BANK", value: "NIFTY PSU BANK", group: "Index" },
+  { label: "NIFTY PHARMA", value: "NIFTY PHARMA", group: "Index" },
+  { label: "NIFTY BANK", value: "NIFTY BANK", group: "Index" },
+  { label: "NIFTY FMCG", value: "NIFTY FMCG", group: "Index" },
+  { label: "NIFTY HEALTHCARE", value: "NIFTY HEALTHCARE", group: "Index" },
+  { label: "NIFTY SMLCAP 250", value: "NIFTY SMLCAP 250", group: "Index" },
+  { label: "NIFTY MIDCAP 100", value: "NIFTY MIDCAP 100", group: "Index" },
+  { label: "NIFTY REALTY", value: "NIFTY REALTY", group: "Index" },
+  {
+    label: "NSE Momentum + Qode (Puts)",
+    value: "Equity + Puts",
+    group: "Qode Derivatives Portfolio",
+  },
+  {
+    label: "NSE Momentum + Qode (Puts + Calls)",
+    value: "Equity + Puts + Calls",
+    group: "Qode Derivatives Portfolio",
+  },
 ];
 
 const PortfolioCalculatorForm = ({
@@ -110,9 +149,9 @@ const PortfolioCalculatorForm = ({
     name: strategy.isJsonColumn ? `📊 ${strategy.label}` : strategy.label
   }));
 
-  const combinedDebtFunds = [...DEBTFUNDS].map(fund => ({
+  const combinedDebtFunds = [...DEBTFUNDS, ...customColumnList].map(fund => ({
     ...fund,
-    name: fund.label
+    name: fund.isJsonColumn ? `📊 ${fund.label}` : fund.label
   }));
 
   // Helper function to distribute remaining weight
