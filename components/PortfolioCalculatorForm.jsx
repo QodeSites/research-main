@@ -151,26 +151,28 @@ const PortfolioCalculatorForm = ({
 
   const handleSystemInputChange = (systemIndex, field, value) => {
     const updatedSystems = [...(portfolioData.selected_systems || [])];
-    
+  
     if (field === 'weightage') {
       // Convert input to number and ensure it's between 0 and 100
-      const newWeight = Math.min(Math.max(parseFloat(value) || 0, 0), 100);
-      
+      let newWeight = Math.min(Math.max(parseInt(value) || 0, 0), 100);
+  
       // Get sum of other weights before adjustment
       const otherWeightsSum = updatedSystems.reduce((sum, system, idx) => 
-        idx === systemIndex ? sum : sum + (parseFloat(system.weightage) || 0), 0);
+        idx === systemIndex ? sum : sum + (parseInt(system.weightage) || 0), 0);
       
       // If other weights sum is 0, distribute remaining weight equally
       if (otherWeightsSum === 0) {
         const remainingWeight = 100 - newWeight;
         const otherSystemsCount = updatedSystems.length - 1;
         if (otherSystemsCount > 0) {
-          const equalShare = remainingWeight / otherSystemsCount;
+          const equalShare = Math.floor(remainingWeight / otherSystemsCount);
+          let remainder = remainingWeight % otherSystemsCount;
+  
           updatedSystems.forEach((system, idx) => {
             if (idx === systemIndex) {
               system.weightage = newWeight;
             } else {
-              system.weightage = parseFloat(equalShare.toFixed(1));
+              system.weightage = equalShare + (remainder-- > 0 ? 1 : 0); // Distribute remainder
             }
           });
         }
@@ -178,29 +180,28 @@ const PortfolioCalculatorForm = ({
         // Adjust other weights proportionally
         const remainingWeight = 100 - newWeight;
         const scaleFactor = remainingWeight / otherWeightsSum;
-        
+  
         updatedSystems.forEach((system, idx) => {
           if (idx === systemIndex) {
             system.weightage = newWeight;
           } else {
-            const adjustedWeight = (parseFloat(system.weightage) || 0) * scaleFactor;
-            system.weightage = parseFloat(adjustedWeight.toFixed(1));
+            const adjustedWeight = Math.round((parseInt(system.weightage) || 0) * scaleFactor);
+            system.weightage = adjustedWeight;
           }
         });
-        
+  
         // Handle rounding errors to ensure exact 100% total
-        const finalTotal = updatedSystems.reduce((sum, system) => 
-          sum + (parseFloat(system.weightage) || 0), 0);
-        if (Math.abs(finalTotal - 100) > 0.1) {
+        let finalTotal = updatedSystems.reduce((sum, system) => sum + (parseInt(system.weightage) || 0), 0);
+        if (finalTotal !== 100) {
           const difference = 100 - finalTotal;
-          // Add the difference to the largest weight that's not the currently edited one
+          // Add/subtract the difference to the largest weight that's not the currently edited one
           let maxWeightIndex = systemIndex === 0 ? 1 : 0;
           updatedSystems.forEach((system, idx) => {
-            if (idx !== systemIndex && (parseFloat(system.weightage) || 0) > (parseFloat(updatedSystems[maxWeightIndex].weightage) || 0)) {
+            if (idx !== systemIndex && (parseInt(system.weightage) || 0) > (parseInt(updatedSystems[maxWeightIndex].weightage) || 0)) {
               maxWeightIndex = idx;
             }
           });
-          updatedSystems[maxWeightIndex].weightage = parseFloat((parseFloat(updatedSystems[maxWeightIndex].weightage) + difference).toFixed(1));
+          updatedSystems[maxWeightIndex].weightage += difference;
         }
       }
     } else {
@@ -213,7 +214,7 @@ const PortfolioCalculatorForm = ({
   
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
-
+  
   const handleDebtFundInputChange = (debtFundIndex, field, value) => {
     const updatedDebtFunds = [...(portfolioData.selected_debtfunds || [])];
     updatedDebtFunds[debtFundIndex] = {
@@ -288,7 +289,6 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                   type="number"
                   min="0"
-                  step="0.1"
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
