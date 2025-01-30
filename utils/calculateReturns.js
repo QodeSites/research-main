@@ -30,6 +30,9 @@ export function calculateReturns(data, period) {
         }
 
         const comparisonData = sortedData[requiredIndex];
+        if (!comparisonData || !comparisonData.nav) {
+            return '-'; // Return dash if data is missing
+        }
         comparisonValue = comparisonData.nav;
 
         yearDiff = daysBack / 365.25; // Approximate year difference
@@ -39,49 +42,69 @@ export function calculateReturns(data, period) {
     } else {
         // Handle periods 1 week and above with backfilling
         let comparisonDate;
+        let minimumDataPoints;
 
         if (period === '1W') {
             // For 1W, go back exactly 7 days
             comparisonDate = addDays(currentDate, -7);
+            minimumDataPoints = 5; // Require at least 5 trading days for weekly data
         } else {
             // For periods >= 1M, find the same date in the previous month(s)
             switch (period) {
                 case '1M':
                     comparisonDate = subtractMonths(currentDate, 1);
+                    minimumDataPoints = 15; // Require at least 15 trading days for monthly data
                     break;
                 case '3M':
                     comparisonDate = subtractMonths(currentDate, 3);
+                    minimumDataPoints = 45; // Minimum trading days for 3 months
                     break;
                 case '6M':
                     comparisonDate = subtractMonths(currentDate, 6);
+                    minimumDataPoints = 90; // Minimum trading days for 6 months
                     break;
                 case '9M':
                     comparisonDate = subtractMonths(currentDate, 9);
+                    minimumDataPoints = 135; // Minimum trading days for 9 months
                     break;
                 case '1Y':
                     comparisonDate = subtractYears(currentDate, 1);
+                    minimumDataPoints = 180; // Minimum trading days for 1 year
                     break;
                 case '2Y':
                     comparisonDate = subtractYears(currentDate, 2);
+                    minimumDataPoints = 360; // Minimum trading days for 2 years
                     break;
                 case '3Y':
                     comparisonDate = subtractYears(currentDate, 3);
+                    minimumDataPoints = 540; // Minimum trading days for 3 years
                     break;
                 case '4Y':
                     comparisonDate = subtractYears(currentDate, 4);
+                    minimumDataPoints = 720; // Minimum trading days for 4 years
                     break;
                 case '5Y':
                     comparisonDate = subtractYears(currentDate, 5);
+                    minimumDataPoints = 900; // Minimum trading days for 5 years
                     break;
                 default:
                     return '-';
             }
         }
 
+        // Check if we have enough data points in the period
+        const dataPointsInPeriod = sortedData.filter(d => 
+            new Date(d.date) >= comparisonDate && new Date(d.date) <= currentDate
+        ).length;
+
+        if (dataPointsInPeriod < minimumDataPoints) {
+            return '-'; // Not enough data points in the period
+        }
+
         // Find the NAV on the comparison date or the most recent prior date
         const comparisonDataFound = findClosestData(sortedData, comparisonDate);
 
-        if (!comparisonDataFound) {
+        if (!comparisonDataFound || !comparisonDataFound.nav) {
             return '-'; // No data available for the comparison date or any prior date
         }
 

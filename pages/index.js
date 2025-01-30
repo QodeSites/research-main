@@ -18,24 +18,31 @@ const IndexTable = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Sorting state
+    // Separate sorting configurations for each table
     const [sortConfig, setSortConfig] = useState({
-        key: null,
-        direction: 'ascending'
+        qodeStrategies: { key: null, direction: 'ascending' },
+        strategy: { key: null, direction: 'ascending' },
+        broadBased: { key: null, direction: 'ascending' },
+        sectoral: { key: null, direction: 'ascending' },
     });
 
     // New state for last fetch time
     const [lastFetchTime, setLastFetchTime] = useState(null);
 
     // Define the indices for each category in the desired order
+    const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
         'NIFTY 50',
         'NIFTY 500',
         'NIFTY NEXT 50',
-        //SE:NIFTY 100',
         'NIFTY MIDCAP 100',
         'NIFTY SMLCAP 250',
-        // 'NSE:NIFTY MICROCAP250'
+    ];
+    const strategyIndices = [
+        'NIFTYM150MOMNTM50',
+        'NIFTY100 LOWVOL30',
+        'NIFTY200MOMENTM30',
+        'GOLDBEES'
     ];
 
     const sectoralIndices = [
@@ -52,7 +59,7 @@ const IndexTable = () => {
         'NIFTY REALTY',
         'NIFTY HEALTHCARE',
         'NIFTY CONSR DURBL',
-        'NIFTY NIFTY OIL AND GAS',
+        'NIFTY OIL AND GAS',
         'NIFTY COMMODITIES',
         'NIFTY CONSUMPTION',
         'NIFTY CPSE',
@@ -61,7 +68,7 @@ const IndexTable = () => {
         'NIFTY PSE'
     ];
 
-    // Function to segregate and order indices into Broad Based and Sectoral
+    // Function to segregate and order indices into categories
     const segregateIndices = (rawData) => {
         const dataMap = new Map(rawData.map(item => [item.indices, item]));
 
@@ -73,7 +80,15 @@ const IndexTable = () => {
             .map(index => dataMap.get(index))
             .filter(item => item !== undefined);
 
-        return { broadBased, sectoral };
+        const strategy = strategyIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
+
+        const qodeStrategies = qodeStrategyIndices
+            .map(index => dataMap.get(index))
+            .filter(item => item !== undefined);
+
+        return { broadBased, sectoral, strategy, qodeStrategies };
     };
 
     const fetchIndices = async () => {
@@ -128,56 +143,67 @@ const IndexTable = () => {
         }
     };
 
-    // Sorting function
-    const sortedData = useMemo(() => {
-        let sortableData = [...data];
-        if (sortConfig.key !== null) {
-            sortableData.sort((a, b) => {
-                let aValue = a[sortConfig.key];
-                let bValue = b[sortConfig.key];
+    // Sorting function for individual tables
+    const getSortedData = (items, tableType) => {
+        const config = sortConfig[tableType];
+        if (!config.key) return items;
 
-                // Handle different data types
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase();
-                    bValue = bValue.toLowerCase();
-                } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-                    aValue = aValue ? 1 : 0;
-                    bValue = bValue ? 1 : 0;
-                }
+        const sortedItems = [...items].sort((a, b) => {
+            let aValue = a[config.key];
+            let bValue = b[config.key];
 
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-        console.log('Sorted Data:', sortableData); // Debugging
-        return sortableData;
-    }, [data, sortConfig]);
+            // Handle different data types
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+                aValue = aValue ? 1 : 0;
+                bValue = bValue ? 1 : 0;
+            }
+
+            if (aValue < bValue) {
+                return config.direction === 'ascending' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return config.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return sortedItems;
+    };
 
     // Segregate sorted data
     const segregatedData = useMemo(() => {
-        const result = segregateIndices(sortedData);
-        console.log("Segregated Data: ", result); // Debugging the segregated data
-        return result;
-    }, [sortedData]);
+        const sortedSegregate = segregateIndices(data);
+        return {
+            qodeStrategies: getSortedData(sortedSegregate.qodeStrategies, 'qodeStrategies'),
+            strategy: getSortedData(sortedSegregate.strategy, 'strategy'),
+            broadBased: getSortedData(sortedSegregate.broadBased, 'broadBased'),
+            sectoral: getSortedData(sortedSegregate.sectoral, 'sectoral'),
+        };
+    }, [data, sortConfig]);
 
-    // Sorting request handler
-    const requestSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
+    // Sorting request handler for individual tables
+    const requestSort = (tableType, key) => {
+        setSortConfig(prevConfig => {
+            const currentConfig = prevConfig[tableType];
+            let direction = 'ascending';
+            if (currentConfig.key === key && currentConfig.direction === 'ascending') {
+                direction = 'descending';
+            }
+            return {
+                ...prevConfig,
+                [tableType]: { key, direction }
+            };
+        });
     };
 
-    // Sorting icon renderer
-    const renderSortIcon = (key) => {
-        if (sortConfig.key !== key) return null;
-        return sortConfig.direction === 'ascending'
+    // Sorting icon renderer for individual tables
+    const renderSortIcon = (tableType, key) => {
+        const config = sortConfig[tableType];
+        if (config.key !== key) return null;
+        return config.direction === 'ascending'
             ? <CaretUpFill className="ml-1 sort-icon" />
             : <CaretDownFill className="ml-1 sort-icon" />;
     };
@@ -186,37 +212,58 @@ const IndexTable = () => {
         fetchIndices();
     }, []);
 
-
-
-    // Function to render table headers (including serial number column)
-    const renderTableHeader = () => (
+    // Function to render table headers (including serial number column) for individual tables
+    const renderTableHeader = (tableType) => (
         <tr>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')}>
-                S.No {renderSortIcon('serialNo')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'serialNo')}
+                className="s-no-column"
+            >
+                S.No {renderSortIcon(tableType, 'serialNo')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('indices')}>
-                Indices {renderSortIcon('indices')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'indices')}
+            >
+                Indices {renderSortIcon(tableType, 'indices')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nav')}>
-                <div className="nav-header">
-                    Current NAV {renderSortIcon('nav')}
-                    {date && <div className="nav-date"><strong>({date})</strong></div>}
-                </div>
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'nav')}
+            >
+                Current NAV {renderSortIcon(tableType, 'nav')}
+                {date && <div style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({date})</div>}
             </th>
-            <th onClick={() => requestSort('currentDD')} style={{ cursor: 'pointer' }}>
-                Current DD {renderSortIcon('currentDD')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'currentDD')}
+            >
+                Current DD {renderSortIcon(tableType, 'currentDD')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('peak')}>
-                Peak {renderSortIcon('peak')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'peak')}
+            >
+                Peak {renderSortIcon(tableType, 'peak')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd10')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon('dd10')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd10')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon(tableType, 'dd10')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd15')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon('dd15')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd15')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon(tableType, 'dd15')}
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd20')}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon('dd20')}
+            <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => requestSort(tableType, 'dd20')}
+            >
+                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon(tableType, 'dd20')}
             </th>
         </tr>
     );
@@ -225,7 +272,7 @@ const IndexTable = () => {
     const renderTableRows = (items) => (
         items.map((item, index) => (
             <tr key={index} className="table-row">
-                <td>{index + 1}</td> {/* Serial Number */}
+                <td className="s-no-column">{index + 1}</td> {/* Serial Number */}
                 <td>
                     {item.indices} &nbsp;
                     {item.direction === 'UP' ? (
@@ -335,7 +382,6 @@ const IndexTable = () => {
         ))
     );
 
-
     const exportToExcel = () => {
         // Create a new workbook
         const workbook = XLSX.utils.book_new();
@@ -354,15 +400,19 @@ const IndexTable = () => {
             }));
         };
 
-        // Transform Broad Based Indices
-        const broadBasedData = transformData(segregatedData.broadBased);
-        const broadBasedWorksheet = XLSX.utils.json_to_sheet(broadBasedData);
-        XLSX.utils.book_append_sheet(workbook, broadBasedWorksheet, 'Broad Based Indices');
+        // Transform each category's data
+        const categories = [
+            { data: segregatedData.qodeStrategies, name: 'Qode Strategies' },
+            { data: segregatedData.strategy, name: 'Strategy Indices' },
+            { data: segregatedData.broadBased, name: 'Broad Based Indices' },
+            { data: segregatedData.sectoral, name: 'Sectoral Indices' },
+        ];
 
-        // Transform Sectoral Indices
-        const sectoralData = transformData(segregatedData.sectoral);
-        const sectoralWorksheet = XLSX.utils.json_to_sheet(sectoralData);
-        XLSX.utils.book_append_sheet(workbook, sectoralWorksheet, 'Sectoral Indices');
+        categories.forEach(category => {
+            const transformedData = transformData(category.data);
+            const worksheet = XLSX.utils.json_to_sheet(transformedData);
+            XLSX.utils.book_append_sheet(workbook, worksheet, category.name);
+        });
 
         // Generate buffer
         const workbookOut = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -373,7 +423,6 @@ const IndexTable = () => {
         // Trigger the download
         saveAs(blob, 'IndicesDrawdowns.xlsx');
     };
-
 
     if (isLoading) {
         return (
@@ -405,45 +454,132 @@ const IndexTable = () => {
                             Export to Excel
                         </Button>
                     </div>
+                    {/* Qode Strategies */}
+                    {segregatedData.qodeStrategies.length > 0 && (
+                        <>
+                            <h3 className="my-3 text-primary">Qode Strategies</h3>
+                            {/* Data As Of label */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader('qodeStrategies')}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.qodeStrategies)}
+                                    </tbody>
+                                </Table>
+                            </div>
+                        </>
+                    )}
+                    {/* Strategy Indices */}
+                    {segregatedData.strategy.length > 0 && (
+                        <>
+                            <h3 className="my-3 text-primary">Strategy Indices</h3>
+                            {/* Data As Of label */}
+                            {date && (
+                                <p className="text-muted">
+                                    Data as of: {date}
+                                </p>
+                            )}
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader('strategy')}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.strategy)}
+                                    </tbody>
+                                </Table>
+                            </div>
+                        </>
+                    )}
                     {/* Broad Based Indices */}
                     {segregatedData.broadBased.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Broad Based Indices</h3>
-                            {/* Data As Of label for Broad Based Indices */}
+                            {/* Data As Of label */}
                             {date && (
                                 <p className="text-muted">
                                     Data as of: {date}
                                 </p>
                             )}
-                            <Table bordered striped responsive className="elegant-table">
-                                <thead className="table-header">
-                                    {renderTableHeader()}
-                                </thead>
-                                <tbody>
-                                    {renderTableRows(segregatedData.broadBased)}
-                                </tbody>
-                            </Table>
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader('broadBased')}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.broadBased)}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </>
                     )}
-
                     {/* Sectoral Indices */}
                     {segregatedData.sectoral.length > 0 && (
                         <>
                             <h3 className="my-3 text-primary">Sectoral Indices</h3>
-                            {/* Data As Of label for Sectoral Indices */}
+                            {/* Data As Of label */}
                             {date && (
                                 <p className="text-muted">
                                     Data as of: {date}
                                 </p>
                             )}
-                            <Table bordered striped responsive className="elegant-table">
-                                <thead className="table-header">
-                                    {renderTableHeader()}
-                                </thead>
-                                <tbody>
-                                    {renderTableRows(segregatedData.sectoral)}
-                                </tbody>
-                            </Table>
+                            <div className="table-container">
+                                <Table bordered striped responsive className="elegant-table table-fixed">
+                                    <colgroup>
+                                        <col style={{ width: '60px' }} /> {/* S.No column */}
+                                        <col style={{ width: '200px' }} /> {/* Indices column */}
+                                        <col style={{ width: '120px' }} /> {/* Current NAV */}
+                                        <col style={{ width: '100px' }} /> {/* Current DD */}
+                                        <col style={{ width: '120px' }} /> {/* Peak */}
+                                        <col style={{ width: '100px' }} /> {/* 10% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 15% DD */}
+                                        <col style={{ width: '100px' }} /> {/* 20% DD */}
+                                    </colgroup>
+                                    <thead className="table-header">
+                                        {renderTableHeader('sectoral')}
+                                    </thead>
+                                    <tbody>
+                                        {renderTableRows(segregatedData.sectoral)}
+                                    </tbody>
+                                </Table>
+                            </div>
                         </>
                     )}
                 </>
