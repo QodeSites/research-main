@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Table, Button, Container, Spinner, Alert, Form } from 'react-bootstrap';
+import { Table, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
 const ClientTracker = () => {
@@ -7,6 +7,7 @@ const ClientTracker = () => {
         portfolio_tracker: [],
         trailing_returns: []
     });
+    const [benchmarkData, setBenchmarkData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeView, setActiveView] = useState('portfolio');
@@ -32,15 +33,35 @@ const ClientTracker = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('/api/ClientTracker');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                // Fetch both ClientTracker and Indices data concurrently
+                const [clientResponse, indicesResponse] = await Promise.all([
+                    fetch('/api/ClientTracker'),
+                    fetch('/api/indices')
+                ]);
+
+                if (!clientResponse.ok) {
+                    throw new Error(`ClientTracker HTTP error! status: ${clientResponse.status}`);
                 }
-                const result = await response.json();
+
+                if (!indicesResponse.ok) {
+                    throw new Error(`Indices HTTP error! status: ${indicesResponse.status}`);
+                }
+
+                const clientResult = await clientResponse.json();
+                const indicesResult = await indicesResponse.json();
+
                 setData({
-                    portfolio_tracker: processPortfolioData(result.portfolio_tracker),
-                    trailing_returns: processReturnsData(result.trailing_returns)
+                    portfolio_tracker: processPortfolioData(clientResult.portfolio_tracker),
+                    trailing_returns: processReturnsData(clientResult.trailing_returns)
                 });
+
+                // Extract NIFTY 50 data
+                const niftyData = indicesResult.data['NIFTY 50'];
+                setBenchmarkData({
+                    dataAsOf: indicesResult.dataAsOf,
+                    ...niftyData
+                });
+
                 setLoading(false);
             } catch (err) {
                 console.error('Fetch error:', err);
@@ -78,9 +99,9 @@ const ClientTracker = () => {
     };
 
     // Updated formatNumber function to use 'en-IN' locale for Indian comma separators
-    const formatNumber = (value) => {
+    const formatNumber = (value, suffix = '') => {
         if (value === null || value === "NaN" || value === undefined) return "-";
-        return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
     };
 
     // Improved color gradient function
@@ -88,7 +109,7 @@ const ClientTracker = () => {
         const value = parseFloat(percentage);
         if (isNaN(value)) return '#FFFFFF';
 
-        // Define ideal cash percentage range (e.g., 5-15% might be ideal)
+        // Define ideal cash percentage range (e.g., 0-15% might be ideal)
         const idealLow = 0;
         const idealHigh = 15;
 
@@ -119,15 +140,15 @@ const ClientTracker = () => {
     // Generic sort function
     const sortedData = (dataArray, sortConfig) => {
         if (!sortConfig.key) return dataArray;
-    
+
         const sorted = [...dataArray].sort((a, b) => {
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
-    
+
             // Handle null or undefined values
             if (aValue === null || aValue === undefined) return 1; // Place null/undefined at the end
             if (bValue === null || bValue === undefined) return -1; // Place null/undefined at the end
-    
+
             // Handle different data types
             if (typeof aValue === 'number' && typeof bValue === 'number') {
                 return aValue - bValue;
@@ -136,13 +157,14 @@ const ClientTracker = () => {
                 return aValue.toString().localeCompare(bValue.toString());
             }
         });
-    
+
         if (sortConfig.direction === 'descending') {
             sorted.reverse();
         }
-    
+
         return sorted;
     };
+
     // Handle sorting for Portfolio Table
     const requestPortfolioSort = (key) => {
         let direction = 'ascending';
@@ -278,6 +300,75 @@ const ClientTracker = () => {
         };
     }, [filteredReturnsData]);
 
+    // Benchmark Table Component
+    // BenchmarkTable Component with Horizontal Layout
+const BenchmarkTable = ({ benchmark }) => {
+    if (!benchmark) return null;
+
+    const {
+        dataAsOf,
+        '10D': d10,
+        '1M': m1,
+        '3M': m3,
+        '6M': m6,
+        '9M': m9,
+        '1Y': y1,
+        '2Y': y2,
+        '3Y': y3,
+        '4Y': y4,
+        '5Y': y5,
+        'Since Inception': sinceInception,
+        'MDD': maxDrawdown,
+        Drawdown: mdd
+    } = benchmark;
+
+    return (
+        <div className="mb-4">
+            <h5>Benchmark: NIFTY 50</h5>
+            <p>Data As Of: {new Date(dataAsOf).toLocaleDateString('en-GB')}</p>
+            <Table bordered striped hover responsive>
+                <thead>
+                    <tr>
+                        <th>Period</th>
+                        <th>10D</th>
+                        <th>1M</th>
+                        <th>3M</th>
+                        <th>6M</th>
+                        <th>9M</th>
+                        <th>1Y</th>
+                        <th>2Y</th>
+                        <th>3Y</th>
+                        <th>4Y</th>
+                        <th>5Y</th>
+                        <th>Since Inception</th>
+                        <th>MDD</th>
+                        <th>Current Drawdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Return (%)</td>
+                        <td>{formatNumber(d10)}%</td>
+                        <td>{formatNumber(m1)}%</td>
+                        <td>{formatNumber(m3)}%</td>
+                        <td>{formatNumber(m6)}%</td>
+                        <td>{formatNumber(m9)}%</td>
+                        <td>{formatNumber(y1)}%</td>
+                        <td>{formatNumber(y2)}%</td>
+                        <td>{formatNumber(y3)}%</td>
+                        <td>{formatNumber(y4)}%</td>
+                        <td>{formatNumber(y5)}%</td>
+                        <td>{formatNumber(sinceInception)}%</td>
+                        <td>{(maxDrawdown)}</td>
+                        <td>{formatNumber(mdd)}%</td>
+                    </tr>
+                </tbody>
+            </Table>
+        </div>
+    );
+};
+
+
     return (
         <div className="m-6">
             <h1 className="mb-4">Client Tracker</h1>
@@ -372,7 +463,6 @@ const ClientTracker = () => {
                                             </td>
                                             <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
                                         </tr>
-
                                     ))}
                                     <tr className="font-bold bg-gray-100">
                                         <td colSpan="3">Total / Average ({filteredPortfolioData.length} clients)</td>
@@ -405,6 +495,9 @@ const ClientTracker = () => {
             {/* Trailing Returns Section */}
             {!loading && !error && activeView === 'returns' && (
                 <>
+                    {/* Benchmark Section */}
+                    <BenchmarkTable benchmark={benchmarkData} />
+
                     {/* Search Input */}
                     <Form className="mb-3">
                         <Form.Control
@@ -463,25 +556,24 @@ const ClientTracker = () => {
                         <tbody>
                             {filteredReturnsData.length > 0 ? (
                                 <>
-                                
-                                {filteredReturnsData.map((item, index) => (
-                                    <tr key={index}>
-                                        <td>{item.name}</td>
-                                        <td>{item.nuvama_code}</td>
-                                        <td>{item.account}</td>
-                                        <td>{formatNumber(item.d10)}%</td>
-                                        <td>{formatNumber(item.m1)}%</td>
-                                        <td>{formatNumber(item.m3)}%</td>
-                                        <td>{formatNumber(item.m6)}%</td>
-                                        <td>{formatNumber(item.y1)}%</td>
-                                        <td>{formatNumber(item.y2)}%</td>
-                                        <td>{formatNumber(item.y5)}%</td>
-                                        <td>{formatNumber(item.since_inception)}%</td>
-                                        <td>{formatNumber(item.mdd)}%</td>
-                                        <td>{formatNumber(item.current_drawdown)}%</td>
-                                    </tr>
-                                ))}
-                                 <tr className="font-bold bg-gray-100">
+                                    {filteredReturnsData.map((item, index) => (
+                                        <tr key={index}>
+                                            <td>{item.name}</td>
+                                            <td>{item.nuvama_code}</td>
+                                            <td>{item.account}</td>
+                                            <td>{formatNumber(item.d10)}%</td>
+                                            <td>{formatNumber(item.m1)}%</td>
+                                            <td>{formatNumber(item.m3)}%</td>
+                                            <td>{formatNumber(item.m6)}%</td>
+                                            <td>{formatNumber(item.y1)}%</td>
+                                            <td>{formatNumber(item.y2)}%</td>
+                                            <td>{formatNumber(item.y5)}%</td>
+                                            <td>{formatNumber(item.since_inception)}%</td>
+                                            <td>{formatNumber(item.mdd)}%</td>
+                                            <td>{formatNumber(item.current_drawdown)}%</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="font-bold bg-gray-100">
                                         <td colSpan="3">Average ({filteredReturnsData.length} clients)</td>
                                         <td>{formatNumber(returnsTotals.d10)}%</td>
                                         <td>{formatNumber(returnsTotals.m1)}%</td>
@@ -508,7 +600,6 @@ const ClientTracker = () => {
             )}
         </div>
     );
-
 };
 
 export default ClientTracker;

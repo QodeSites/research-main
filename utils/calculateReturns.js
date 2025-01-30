@@ -11,8 +11,29 @@ export function calculateReturns(data, period) {
     let comparisonValue;
     let yearDiff;
 
+    // Handle "Since Inception" separately
+    if (period === 'Since Inception') {
+        const inceptionData = sortedData[0];
+        if (!inceptionData || !inceptionData.nav) {
+            return '-'; // No inception data available
+        }
+
+        comparisonValue = inceptionData.nav;
+        const inceptionDate = new Date(inceptionData.date);
+        yearDiff = (currentDate - inceptionDate) / (1000 * 60 * 60 * 24 * 365.25);
+
+        if (yearDiff <= 1) {
+            // Use absolute returns for periods <= 1 year
+            return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
+        } else {
+            // Use CAGR for periods > 1 year
+            const cagr = (Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100;
+            return cagr.toFixed(2);
+        }
+    }
+
     // Define periods less than 1 week
-    const shortPeriods = ['1D', '2D', '3D'];
+    const shortPeriods = ['1D', '2D', '3D', '10D'];
 
     if (shortPeriods.includes(period)) {
         // Handle periods less than 1 week by direct indexing
@@ -20,10 +41,16 @@ export function calculateReturns(data, period) {
             '1D': 1,
             '2D': 2,
             '3D': 3,
+            '10D': 10
         };
 
         const daysBack = daysMap[period];
+        
         const requiredIndex = sortedData.length - 1 - daysBack;
+        console.log('sortedData', daysBack);
+        
+        console.log('requiredIndex', data[requiredIndex]);
+        
 
         if (requiredIndex < 0) {
             return '-'; // Not enough data points
@@ -203,4 +230,33 @@ export function calculateDrawdown(data) {
     const drawdown = ((currentNav - peakNav) / peakNav) * 100;
 
     return drawdown.toFixed(2);
+}
+
+export function calculateMDD(data) {
+    if (!data || data.length === 0) return '-';
+
+    // Ensure data is sorted by date in ascending order
+    const sortedData = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let peak = sortedData[0].nav; // Initialize peak with the first NAV
+    let maxDrawdown = 0; // Initialize maximum drawdown
+
+    for (let i = 1; i < sortedData.length; i++) {
+        const currentNav = sortedData[i].nav;
+
+        // Update the peak if the current NAV is higher than the previous peak
+        if (currentNav > peak) {
+            peak = currentNav;
+        }
+
+        // Calculate the drawdown from the current peak
+        const drawdown = ((peak - currentNav) / peak) * 100;
+
+        // Update the maximum drawdown if the current drawdown is larger
+        if (drawdown > maxDrawdown) {
+            maxDrawdown = drawdown;
+        }
+    }
+
+    return `${maxDrawdown.toFixed(2)}%`; // Return MDD as a percentage string with 2 decimal places
 }

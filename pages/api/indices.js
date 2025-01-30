@@ -1,4 +1,4 @@
-import { calculateDrawdown, calculateReturns } from "utils/calculateReturns";
+import { calculateDrawdown, calculateMDD, calculateReturns } from "utils/calculateReturns";
 import db from "lib/db";
 
 export default async function handler(req, res) {
@@ -81,6 +81,7 @@ export default async function handler(req, res) {
                 '1D': calculateReturns(data, '1D', index),
                 '2D': calculateReturns(data, '2D', index),
                 '3D': calculateReturns(data, '3D', index),
+                '10D': calculateReturns(data, '10D', index),
                 '1W': calculateReturns(data, '1W', index),
                 '1M': calculateReturns(data, '1M', index),
                 '3M': calculateReturns(data, '3M', index),
@@ -91,7 +92,9 @@ export default async function handler(req, res) {
                 '3Y': calculateReturns(data, '3Y', index),
                 '4Y': calculateReturns(data, '4Y', index),
                 '5Y': calculateReturns(data, '5Y', index),
-                'Drawdown': calculateDrawdown(data)
+                'Since Inception': calculateReturns(data, 'Since Inception', index),
+                'Drawdown': calculateDrawdown(data),
+                'MDD': calculateMDD(data) // Maximum Drawdown
             };
 
             // Add custom date range returns if available
