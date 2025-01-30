@@ -1,9 +1,17 @@
-// pages/api/getIndices.js
-
 import db from "lib/db"; // Ensure this path is correct based on your project structure
 
 export default async function handler(req, res) {
     const { method } = req;
+
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins (or specify your frontend URL, e.g., 'http://localhost:3001')
+    res.setHeader('Access-Control-Allow-Methods', 'GET'); // Allow only GET requests
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type'); // Allow specific headers
+
+    // Handle preflight requests (OPTIONS)
+    if (method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
     // Allow only GET requests
     if (method !== 'GET') {
