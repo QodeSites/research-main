@@ -141,7 +141,7 @@ const IndicesPage = () => {
 
     const getDisplayValue = (returns, period, isQodeStrategy) => {
         // Define the periods beyond which data should be hidden for Qode Strategies
-        const periodsToHideForQode = ['3M', '6M', '9M', '1Y', 'DD'];
+        const periodsToHideForQode = ['3M', '6M', '9M', '1Y'];
 
         if (isQodeStrategy && periodsToHideForQode.includes(period)) {
             return '-';
