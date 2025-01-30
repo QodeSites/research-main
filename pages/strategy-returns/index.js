@@ -225,7 +225,7 @@ const IndicesPage = () => {
                                         onClick={() => handleSort(sortConfig, setSortConfig, period === 'DD' ? 'DD' : period)}
                                         style={{ cursor: 'pointer' }}
                                     >
-                                        {period === 'DD' ? 'Drawdown' : `${period} Return`} {renderSortIcon(sortConfig, period === 'DD' ? 'DD' : period)}
+                                        {period === 'DD' ? 'Drawdown' : `${period}`} {renderSortIcon(sortConfig, period === 'DD' ? 'DD' : period)}
                                     </th>
                                 ))}
                             </tr>
