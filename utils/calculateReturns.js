@@ -33,7 +33,7 @@ export function calculateReturns(data, period) {
     }
 
     // Define periods less than 1 week
-    const shortPeriods = ['1D', '2D', '3D', '10D'];
+    const shortPeriods = ['1D', '2D', '3D'];
 
     if (shortPeriods.includes(period)) {
         // Handle periods less than 1 week by direct indexing
@@ -41,7 +41,6 @@ export function calculateReturns(data, period) {
             '1D': 1,
             '2D': 2,
             '3D': 3,
-            '10D': 10
         };
 
         const daysBack = daysMap[period];
@@ -75,7 +74,11 @@ export function calculateReturns(data, period) {
             // For 1W, go back exactly 7 days
             comparisonDate = addDays(currentDate, -7);
             minimumDataPoints = 5; // Require at least 5 trading days for weekly data
-        } else {
+        } else if (period === '10D') {
+            // For 10D, go back exactly 10 days
+            comparisonDate = addDays(currentDate, -10);
+            minimumDataPoints = 8; // Require at least 8 trading days for 10 days
+        }else {
             // For periods >= 1M, find the same date in the previous month(s)
             switch (period) {
                 case '1M':
