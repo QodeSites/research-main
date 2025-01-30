@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Container, Table, Spinner, Alert, Button, Form, Row, Col } from 'react-bootstrap';
+import { 
+    Container, 
+    Table, 
+    Spinner, 
+    Alert, 
+    Button, 
+    Form, 
+    Row, 
+    Col, 
+    InputGroup, 
+    FormControl 
+} from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
 
 const ReturnsComparisonPage = () => {
@@ -10,15 +21,17 @@ const ReturnsComparisonPage = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    // Sorting configuration for each table
+    // Filtering and Searching
+    const [selectedGroup, setSelectedGroup] = useState('All');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Single sorting configuration
     const [sortConfig, setSortConfig] = useState({
-        qodeStrategies: { key: null, direction: 'asc' },
-        broadBased: { key: null, direction: 'asc' },
-        strategy: { key: null, direction: 'asc' },
-        sectoral: { key: null, direction: 'asc' },
+        key: null,
+        direction: 'asc'
     });
 
-    // Define the indices categories (same as IndicesPage)
+    // Define the indices categories
     const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
         'NIFTY 50',
@@ -54,61 +67,62 @@ const ReturnsComparisonPage = () => {
         'NIFTY REALTY'
     ];
 
+    const allIndicesGroups = {
+        'Qode Strategies': qodeStrategyIndices,
+        'Broad Based Indices': broadBasedIndices,
+        'Strategy Indices': strategyIndices,
+        'Sectoral Indices': sectoralIndices
+    };
+
     const segregateIndices = (data = {}) => {
         const createDefaultReturns = () => ({
+            '1D': '-',
+            '2D': '-',
+            '3D': '-',
+            '10D': '-',
+            '1W': '-',
+            '1M': '-',
+            '3M': '-',
+            '6M': '-',
+            '9M': '-',
             '1Y': '-',
             '2Y': '-',
             '3Y': '-',
             '4Y': '-',
             '5Y': '-',
-            'CDR': '-'
+            'Since Inception': '-',
+            'Drawdown': '-',
+            'MDD': '-',
+            'CDR': '-' // Ensure CDR is included for all indices
         });
 
-        const segregated = {
-            qodeStrategies: {},
-            broadBased: {},
-            strategy: {},
-            sectoral: {}
-        };
+        const combined = [];
 
-        // Initialize with default values
-        qodeStrategyIndices.forEach(index => {
-            segregated.qodeStrategies[index] = createDefaultReturns();
-        });
-        broadBasedIndices.forEach(index => {
-            segregated.broadBased[index] = createDefaultReturns();
-        });
-        strategyIndices.forEach(index => {
-            segregated.strategy[index] = createDefaultReturns();
-        });
-        sectoralIndices.forEach(index => {
-            segregated.sectoral[index] = createDefaultReturns();
-        });
-
-        // Populate with actual data, excluding qodeStrategies
-        if (data) {
-            Object.entries(data).forEach(([index, returns]) => {
-                const processedReturns = {
-                    '1Y': returns['1Y'] || '-',
-                    '2Y': returns['2Y'] || '-',
-                    '3Y': returns['3Y'] || '-',
-                    '4Y': returns['4Y'] || '-',
-                    '5Y': returns['5Y'] || '-',
-                    'CDR': returns['CDR'] || '-'
-                };
-
-                if (broadBasedIndices.includes(index)) {
-                    segregated.broadBased[index] = processedReturns;
-                } else if (strategyIndices.includes(index)) {
-                    segregated.strategy[index] = processedReturns;
-                } else if (sectoralIndices.includes(index)) {
-                    segregated.sectoral[index] = processedReturns;
-                }
-                // Intentionally exclude qodeStrategyIndices to keep them as '-'
+        // Initialize combined array with all indices and their categories
+        for (const [category, indices] of Object.entries(allIndicesGroups)) {
+            indices.forEach(index => {
+                combined.push({
+                    index,
+                    category,
+                    ...createDefaultReturns()
+                });
             });
         }
 
-        return segregated;
+        // Populate with actual data
+        if (data) {
+            Object.entries(data).forEach(([index, returns]) => {
+                const processedReturns = { ...returns };
+
+                // Find the corresponding index in combined and update returns
+                const indexObj = combined.find(item => item.index === index);
+                if (indexObj) {
+                    Object.assign(indexObj, processedReturns);
+                }
+            });
+        }
+
+        return combined;
     };
 
     const fetchData = async () => {
@@ -151,38 +165,37 @@ const ReturnsComparisonPage = () => {
         fetchData();
     };
 
-    const handleSort = (tableType, key) => {
+    const handleSort = (key) => {
         setSortConfig(prevConfig => {
-            const currentConfig = prevConfig[tableType];
             let direction = 'asc';
-            if (currentConfig.key === key && currentConfig.direction === 'asc') {
+            if (prevConfig.key === key && prevConfig.direction === 'asc') {
                 direction = 'desc';
             }
             return {
-                ...prevConfig,
-                [tableType]: { key, direction }
+                key,
+                direction
             };
         });
     };
 
-    const getSortedIndices = (indices, tableType) => {
-        const { key, direction } = sortConfig[tableType];
+    const getSortedIndices = (indices) => {
+        const { key, direction } = sortConfig;
         if (!key) return indices;
 
-        const sortedEntries = [...Object.entries(indices)];
+        const sorted = [...indices];
 
-        sortedEntries.sort((a, b) => {
+        sorted.sort((a, b) => {
             let aValue, bValue;
 
-            if (key === 'Index') {
-                aValue = a[0].toUpperCase();
-                bValue = b[0].toUpperCase();
+            if (key === 'index' || key === 'category') {
+                aValue = a[key].toUpperCase();
+                bValue = b[key].toUpperCase();
                 if (aValue < bValue) return direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return direction === 'asc' ? 1 : -1;
                 return 0;
             } else {
-                aValue = a[1][key] === '-' ? null : parseFloat(a[1][key]);
-                bValue = b[1][key] === '-' ? null : parseFloat(b[1][key]);
+                aValue = a[key] === '-' ? null : parseFloat(a[key]);
+                bValue = b[key] === '-' ? null : parseFloat(b[key]);
 
                 if (aValue === null && bValue === null) return 0;
                 if (aValue === null) return 1;
@@ -194,109 +207,66 @@ const ReturnsComparisonPage = () => {
             }
         });
 
-        return Object.fromEntries(sortedEntries);
+        return sorted;
     };
 
-    const renderSortIndicator = (tableType, columnKey) => {
-        const { key, direction } = sortConfig[tableType];
+    const renderSortIndicator = (columnKey) => {
+        const { key, direction } = sortConfig;
         if (key !== columnKey) return null;
         return direction === 'asc' ? ' ▲' : ' ▼';
     };
 
-    const renderIndicesTable = (indices, title, tableType) => {
-        const sortedIndices = getSortedIndices(indices, tableType);
+    const renderIndicesTable = (indices) => {
+        const sortedIndices = getSortedIndices(indices);
 
         return (
             <>
-                <h3 className="my-3 text-primary">{title}</h3>
+                <h3 className="my-3 text-primary">All Indices</h3>
                 {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
                 <div className="table-container">
                     <Table striped bordered hover responsive className="elegant-table table-fixed">
-                        <colgroup>
-                            <col style={{ width: '50px' }} /> {/* S.No column */}
-                            <col style={{ width: '200px' }} /> {/* Index column */}
-                            <col style={{ width: '100px' }} /> {/* 1Y Return */}
-                            <col style={{ width: '100px' }} /> {/* 2Y Return */}
-                            <col style={{ width: '100px' }} /> {/* 3Y Return */}
-                            <col style={{ width: '100px' }} /> {/* 4Y Return */}
-                            <col style={{ width: '100px' }} /> {/* 5Y Return */}
-                            <col style={{ width: '100px' }} /> {/* CDR */}
-                        </colgroup>
                         <thead className="sticky-header">
                             <tr>
+                                <th>S.No</th>
                                 <th
                                     style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, 'S.No')}
+                                    onClick={() => handleSort('index')}
                                 >
-                                    S.No{renderSortIndicator(tableType, 'S.No')}
+                                    Index{renderSortIndicator('index')}
                                 </th>
                                 <th
                                     style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, 'Index')}
+                                    onClick={() => handleSort('category')}
                                 >
-                                    Index{renderSortIndicator(tableType, 'Index')}
+                                    Category{renderSortIndicator('category')}
                                 </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, '1Y')}
-                                >
-                                    1Y Return{renderSortIndicator(tableType, '1Y')}
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, '2Y')}
-                                >
-                                    2Y Return{renderSortIndicator(tableType, '2Y')}
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, '3Y')}
-                                >
-                                    3Y Return{renderSortIndicator(tableType, '3Y')}
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, '4Y')}
-                                >
-                                    4Y Return{renderSortIndicator(tableType, '4Y')}
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, '5Y')}
-                                >
-                                    5Y Return{renderSortIndicator(tableType, '5Y')}
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort(tableType, 'CDR')}
-                                >
-                                    CDR{renderSortIndicator(tableType, 'CDR')}
-                                </th>
+                                {/* Dynamic headers for returns */}
+                                {[ '1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'].map((period) => (
+                                    <th
+                                        key={period}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => handleSort(period)}
+                                    >
+                                        {period} {renderSortIndicator(period)}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(sortedIndices).map(([index, returns], idx) => (
-                                <tr key={index}>
+                            {sortedIndices.map((item, idx) => (
+                                <tr key={item.index}>
                                     <td className="s-no-column">{idx + 1}</td>
-                                    <td className="index-column">{index}</td>
-                                    <td className={returns['1Y'] !== '-' && parseFloat(returns['1Y']) < 0 ? 'text-danger' : ''}>
-                                        {returns['1Y']}{returns['1Y'] !== '-' ? '%' : ''}
-                                    </td>
-                                    <td className={returns['2Y'] !== '-' && parseFloat(returns['2Y']) < 0 ? 'text-danger' : ''}>
-                                        {returns['2Y']}{returns['2Y'] !== '-' ? '%' : ''}
-                                    </td>
-                                    <td className={returns['3Y'] !== '-' && parseFloat(returns['3Y']) < 0 ? 'text-danger' : ''}>
-                                        {returns['3Y']}{returns['3Y'] !== '-' ? '%' : ''}
-                                    </td>
-                                    <td className={returns['4Y'] !== '-' && parseFloat(returns['4Y']) < 0 ? 'text-danger' : ''}>
-                                        {returns['4Y']}{returns['4Y'] !== '-' ? '%' : ''}
-                                    </td>
-                                    <td className={returns['5Y'] !== '-' && parseFloat(returns['5Y']) < 0 ? 'text-danger' : ''}>
-                                        {returns['5Y']}{returns['5Y'] !== '-' ? '%' : ''}
-                                    </td>
-                                    <td className={returns['CDR'] !== '-' && parseFloat(returns['CDR']) < 0 ? 'text-danger' : ''}>
-                                        {returns['CDR']}{returns['CDR'] !== '-' ? '%' : ''}
-                                    </td>
+                                    <td className="index-column">{item.index}</td>
+                                    <td className="category-column">{item.category}</td>
+                                    {/* Render return values with conditional styling */}
+                                    {[ '1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'].map((period) => (
+                                        <td 
+                                            key={period}
+                                            className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}
+                                        >
+                                            {item[period]}{item[period] !== '-' && period !== 'Drawdown' && period !== 'MDD' ? '%' : ''}
+                                        </td>
+                                    ))}
                                 </tr>
                             ))}
                         </tbody>
@@ -322,7 +292,17 @@ const ReturnsComparisonPage = () => {
         );
     }
 
-    const { qodeStrategies, broadBased, strategy, sectoral } = segregateIndices(indicesData);
+    const combinedIndices = segregateIndices(indicesData);
+
+    // Apply Group Filter
+    const filteredByGroup = selectedGroup === 'All' 
+        ? combinedIndices 
+        : combinedIndices.filter(item => item.category === selectedGroup);
+
+    // Apply Search Filter
+    const finalFilteredIndices = filteredByGroup.filter(item => 
+        item.index.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="p-4">
@@ -330,7 +310,43 @@ const ReturnsComparisonPage = () => {
             
             <Form onSubmit={handleDateSubmit} className="mb-4">
                 <Row>
-                    <Col md={4}>
+                    <Col md={3}>
+                        <Form.Group>
+                            <Form.Label>Search Index</Form.Label>
+                            <InputGroup>
+                                <FormControl
+                                    type="text"
+                                    placeholder="Search by index name"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                <Button
+                                    variant="outline-secondary"
+                                    onClick={() => setSearchTerm('')}
+                                    disabled={!searchTerm}
+                                >
+                                    Clear
+                                </Button>
+                            </InputGroup>
+                        </Form.Group>
+                    </Col>
+                    <Col md={3}>
+                        <Form.Group>
+                            <Form.Label>Filter by Group</Form.Label>
+                            <Form.Control
+                                as="select"
+                                value={selectedGroup}
+                                onChange={(e) => setSelectedGroup(e.target.value)}
+                            >
+                                <option value="All">All Groups</option>
+                                {Object.keys(allIndicesGroups).map(group => (
+                                    <option key={group} value={group}>{group}</option>
+                                ))}
+                            </Form.Control>
+                        </Form.Group>
+                    </Col>
+
+                    <Col md={3}>
                         <Form.Group>
                             <Form.Label>Start Date</Form.Label>
                             <Form.Control
@@ -340,7 +356,7 @@ const ReturnsComparisonPage = () => {
                             />
                         </Form.Group>
                     </Col>
-                    <Col md={4}>
+                    <Col md={3}>
                         <Form.Group>
                             <Form.Label>End Date</Form.Label>
                             <Form.Control
@@ -350,11 +366,14 @@ const ReturnsComparisonPage = () => {
                             />
                         </Form.Group>
                     </Col>
-                    <Col md={4} className="d-flex align-items-end">
-                        <Button 
-                            variant="primary" 
+
+                </Row>
+                <Row className="mt-3">
+                    <Col md={3}>
+                        <Button
+                            variant="primary"
                             type="submit"
-                            disabled={!startDate || !endDate}
+                            disabled={(!startDate || !endDate)}
                         >
                             Calculate Custom Returns
                         </Button>
@@ -362,10 +381,7 @@ const ReturnsComparisonPage = () => {
                 </Row>
             </Form>
 
-            {renderIndicesTable(qodeStrategies, 'Qode Strategies', 'qodeStrategies')}
-            {renderIndicesTable(broadBased, 'Broad Based Indices', 'broadBased')}
-            {renderIndicesTable(strategy, 'Strategy Indices', 'strategy')}
-            {renderIndicesTable(sectoral, 'Sectoral Indices', 'sectoral')}
+            {renderIndicesTable(finalFilteredIndices)}
         </div>
     );
 };

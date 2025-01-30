@@ -439,11 +439,11 @@ const IndexTable = () => {
             <h2 className="text-left my-4 elegant-title">Indices Drawdowns</h2>
 
             {/* Display last fetch time */}
-            {lastFetchTime && (
+            {/* {lastFetchTime && (
                 <p className="text-muted">
                     Last Fetch: {formatDate(lastFetchTime).toLocaleString()}
                 </p>
-            )}
+            )} */}
 
             {error && <div className="alert alert-danger">{error}</div>}
 

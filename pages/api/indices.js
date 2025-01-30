@@ -3,7 +3,10 @@ import db from "lib/db";
 
 export default async function handler(req, res) {
     const { startDate, endDate } = req.body;
-    
+
+    // Define Qode Strategies explicitly
+    const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
+
     try {
         // Main data query for all returns
         const query = `
@@ -100,6 +103,9 @@ export default async function handler(req, res) {
             // Add custom date range returns if available
             if (customDateResults[index]) {
                 results[index]['CDR'] = customDateResults[index];
+            } else if (customDateQuery) {
+                // If no CDR calculated, set to '-'
+                results[index]['CDR'] = '-';
             }
         }
 
@@ -117,7 +123,7 @@ export default async function handler(req, res) {
                 const requiredPoints = Math.floor(daysDiff * 0.8); // Assuming ~1 data point per trading day
 
                 // For strict validation indices, require more complete data
-                const isStrictIndex = ['QGF', 'QAW', 'QTF'].includes(index);
+                const isStrictIndex = qodeStrategyIndices.includes(index);
                 const minimumPoints = isStrictIndex ? requiredPoints : Math.floor(requiredPoints * 0.8);
 
                 if (customDateData.length < minimumPoints) {

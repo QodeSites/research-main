@@ -1,5 +1,4 @@
 "use client";
-// import node module libraries
 import { Fragment, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,13 +7,6 @@ import AccordionContext from "react-bootstrap/AccordionContext";
 import { useAccordionButton } from "react-bootstrap/AccordionButton";
 import SimpleBar from "simplebar-react";
 import "simplebar/dist/simplebar.min.css";
-
-// import react feather icons
-import { BarChart, TrendingUp, Clipboard, ChevronDown } from "react-feather";
-
-import {
-  Card,
-} from "react-bootstrap";
 
 const NavbarVertical = (props) => {
   const [activeMenus, setActiveMenus] = useState([]);
@@ -46,71 +38,107 @@ const NavbarVertical = (props) => {
             <div className="d-flex items-center">
               {children}
             </div>
-            {/* <ChevronDown 
+            <ChevronDown 
               size={16} 
               className={`transform transition-transform ${isCurrentEventKey ? 'rotate-180' : ''}`}
-            /> */}
+            />
           </div>
         </Link>
       </li>
     );
   };
+
   return (
     <Fragment>
       <SimpleBar style={{ maxHeight: "100vh" }}>
         <div className="nav-scroller">
-          <Link href="/" className="navbar-brand text-3xl playfair-display">
-            Qode
+          <Link href="/" className="navbar-brand">
+            <img
+              src="/assets/density_logo_new_trans.png"
+              alt="Logo"
+              className="img-fluid"
+              style={{ height: "80px", width: "auto" }}
+            />
           </Link>
         </div>
-
-        {/* Dashboard Menu */}
         <Accordion as="ul" className="navbar-nav flex-column">
-        <CustomToggle eventKey="Performance Analysis:" >
+          {/* Dashboard Accordion */}
+          <CustomToggle eventKey="Performance Analysis:" >
           Performance Analysis:
           </CustomToggle>
-
           <Accordion.Collapse eventKey="Performance Analysis:">
             <ul className="nav flex-column ms-3">
               <li className="nav-item mb-3">
-                <Link href="/returns-comparison" className="nav-link d-flex align-items-center">
-                Short Term Performance
+                <Link href="/" className="nav-link d-flex align-items-center">
+                  All
                 </Link>
               </li>
               <li className="nav-item mb-3">
-                <Link href="/strategy-returns" className="nav-link d-flex align-items-center">
-                Long Term Performance
+                <Link href="/dashboard/customer" className="nav-link d-flex align-items-center">
+                 Customer
                 </Link>
               </li>
               <li className="nav-item mb-3">
-                <Link href="/strategy-drawdowns" className="nav-link d-flex align-items-center">
-                Drawdown Comparison
+                <Link href="/dashboard/sales-person" className="nav-link d-flex align-items-center">
+                 Sales Person
                 </Link>
               </li>
             </ul>
           </Accordion.Collapse>
-          <Card bsPrefix="nav-item">
-            <Link href="/portfolio-visualiser" className="nav-link">
-              <Clipboard className="feather-icon" size={18} />&nbsp;
-              Portfolio Visualiser
-            </Link>
-          </Card>
 
-          <Card bsPrefix="nav-item">
-            <Link href="/client-tracker" className="nav-link">
-              <Clipboard className="feather-icon" size={18} />&nbsp;
-              Client Tracker
+          {/* Quotations */}
+          <li className="nav-item mb-3">
+            <Link href="/quotations" className="nav-link d-flex align-items-center">
+               Quotation
             </Link>
-          </Card>
+          </li>
 
-          <Card bsPrefix="nav-item">
-            <Link href="/website-enquiries" className="nav-link">
-              <Clipboard className="feather-icon" size={18} />&nbsp;
-              Website Enquries
+          {/* Orders Accordion */}
+          <CustomToggle eventKey="orders" >
+            Orders
+          </CustomToggle>
+          <Accordion.Collapse eventKey="orders">
+            <ul className="nav flex-column ms-3">
+              <li className="nav-item mb-3">
+                <Link href="/orders" className="nav-link d-flex align-items-center">
+                </Link>
+              </li>
+              <li className="nav-item mb-3">
+                <Link href="/open-orders" className="nav-link d-flex align-items-center">
+                </Link>
+              </li>
+            </ul>
+          </Accordion.Collapse>
+
+          {/* Invoices */}
+          <li className="nav-item mb-3">
+            <Link href="/invoices" className="nav-link d-flex align-items-center">
             </Link>
-          </Card>
+          </li>
+
+          {/* Customers (Admin Only) */}
+            <li className="nav-item mb-3">
+              <Link href="/customers" className="nav-link d-flex align-items-center">
+               Customers
+              </Link>
+            </li>
+
+          {/* Products */}
+          <li className="nav-item mb-3">
+            <Link href="/products" className="nav-link d-flex align-items-center">
+               Products
+            </Link>
+          </li>
+
+          {/* Outstanding Payments */}
+          <li className="nav-item mb-3">
+            <Link href="/outstanding-payment" className="nav-link d-flex align-items-center">
+               Outstanding Payments
+            </Link>
+          </li>
+
+
         </Accordion>
-        {/* end of Dashboard Menu */}
       </SimpleBar>
     </Fragment>
   );
