@@ -73,12 +73,12 @@ const NavbarVertical = (props) => {
           <Accordion.Collapse eventKey="Performance Analysis:">
             <ul className="nav flex-column ms-3">
               <li className="nav-item mb-3">
-                <Link href="/returns-comparison" className="nav-link d-flex align-items-center">
+                <Link href="/strategy-returns" className="nav-link d-flex align-items-center">
                 Short Term Performance
                 </Link>
               </li>
               <li className="nav-item mb-3">
-                <Link href="/strategy-returns" className="nav-link d-flex align-items-center">
+                <Link href="/returns-comparison" className="nav-link d-flex align-items-center">
                 Long Term Performance
                 </Link>
               </li>
