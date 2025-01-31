@@ -44,17 +44,21 @@ const NavbarVertical = (props) => {
         >
           <div className="d-flex w-full justify-between items-center">
             <div className="d-flex items-center">
+              {icon && <span className="me-2">{icon}</span>}
               {children}
             </div>
-            {/* <ChevronDown 
-              size={16} 
-              className={`transform transition-transform ${isCurrentEventKey ? 'rotate-180' : ''}`}
+            {/* <ChevronDown
+              size={16}
+              className={`transform transition-transform ${
+                isCurrentEventKey ? "rotate-180" : ""
+              }`}
             /> */}
           </div>
         </Link>
       </li>
     );
   };
+
   return (
     <Fragment>
       <SimpleBar style={{ maxHeight: "100vh" }}>
@@ -66,29 +70,30 @@ const NavbarVertical = (props) => {
 
         {/* Dashboard Menu */}
         <Accordion as="ul" className="navbar-nav flex-column">
-        <CustomToggle eventKey="Performance Analysis:" >
-          Performance Analysis:
+          <CustomToggle eventKey="Performance Analysis:" icon={<BarChart size={18} />}>
+            Performance Analysis:
           </CustomToggle>
 
           <Accordion.Collapse eventKey="Performance Analysis:">
             <ul className="nav flex-column ms-3">
               <li className="nav-item mb-3">
                 <Link href="/strategy-returns" className="nav-link d-flex align-items-center">
-                Short Term Performance
+                  Short Term Performance
                 </Link>
               </li>
               <li className="nav-item mb-3">
                 <Link href="/returns-comparison" className="nav-link d-flex align-items-center">
-                Long Term Performance
+                  Long Term Performance
                 </Link>
               </li>
               <li className="nav-item mb-3">
                 <Link href="/strategy-drawdowns" className="nav-link d-flex align-items-center">
-                Drawdown Comparison
+                  Drawdown Comparison
                 </Link>
               </li>
             </ul>
           </Accordion.Collapse>
+
           <Card bsPrefix="nav-item">
             <Link href="/portfolio-visualiser" className="nav-link">
               <Clipboard className="feather-icon" size={18} />&nbsp;
@@ -106,7 +111,7 @@ const NavbarVertical = (props) => {
           <Card bsPrefix="nav-item">
             <Link href="/website-enquiries" className="nav-link">
               <Clipboard className="feather-icon" size={18} />&nbsp;
-              Website Enquries
+              Website Enquiries
             </Link>
           </Card>
         </Accordion>

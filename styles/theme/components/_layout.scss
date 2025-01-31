@@ -46,7 +46,7 @@
   #page-content {
     min-height: 100vh;
     min-width: 100vw;
-    margin-left: 15.625rem;
+    margin-left: 17.005rem;
     -webkit-transition: margin 0.25s ease-out;
     -moz-transition: margin 0.25s ease-out;
     -o-transition: margin 0.25s ease-out;
@@ -94,7 +94,7 @@
 
     #db-wrapper.toggled {
       #page-content {
-        margin-left: 15.6875rem;
+        margin-left: 25.6875rem;
       }
     }
   }
@@ -109,7 +109,7 @@
       width: 100%;
     }
     #db-wrapper.toggled .navbar-vertical {
-      margin-left: -16rem;
+      margin-left: -17rem;
     }
   }
 
@@ -120,7 +120,7 @@
     }
     #db-wrapper.toggled {
       #page-content {
-        margin-left: 15.6875rem;
+        margin-left: 25.6875rem;
       }
     }
   }
