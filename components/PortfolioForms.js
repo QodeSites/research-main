@@ -74,7 +74,7 @@ const ParentComponent = () => {
       <PortfolioManager 
         onSubmit={handleFormSubmit}
         loading={loading}
-        columns={['Custom1', 'Custom2']}
+        columns
       />
 
       {loading && (

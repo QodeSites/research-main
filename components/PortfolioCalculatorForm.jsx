@@ -119,8 +119,6 @@ const PortfolioCalculatorForm = ({
   masterEndDate = null,
   isBenchmarkDisabled = false,
 }) => {
-  // Remove the total weight error state as we no longer enforce 100%
-  
   // Handle form data changes
   const handleInputChange = (field, value) => {
     if (field === "invest_amount") {
@@ -152,7 +150,7 @@ const PortfolioCalculatorForm = ({
     name: fund.isJsonColumn ? `📊 ${fund.label}` : fund.label
   }));
 
-  // Updated to use decimal weights
+  // Updated to use decimal weights with 6 decimal places
   const handleStrategySelect = (selectedList) => {
     if (selectedList.length === 0) {
       onChange(index, { ...portfolioData, selected_systems: [] });
@@ -161,14 +159,14 @@ const PortfolioCalculatorForm = ({
     const weight = 100 / selectedList.length;
     const updatedSystems = selectedList.map((item) => ({
       system: item.value,
-      weightage: parseFloat(weight.toFixed(2)),
+      weightage: parseFloat(weight.toFixed(6)),
       leverage: '1',
       column: '',
     }));
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
 
-  // Updated to use decimal weights for debt funds as well
+  // Updated to use decimal weights for debt funds with 6 decimals as well
   const handleDebtFundSelect = (selectedList) => {
     if (selectedList.length === 0) {
       onChange(index, { ...portfolioData, selected_debtfunds: [] });
@@ -177,10 +175,37 @@ const PortfolioCalculatorForm = ({
     const weight = 100 / selectedList.length;
     const updatedDebtFunds = selectedList.map((item) => ({
       debtfund: item.value,
-      weightage: parseFloat(weight.toFixed(2)),
+      weightage: parseFloat(weight.toFixed(6)),
       leverage: '1'
     }));
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
+  };
+
+  // New: Button handler to add all custom strategies to the current selection
+  const handleSelectAllCustomStrategies = () => {
+    const currentSelected = portfolioData.selected_systems || [];
+    const currentSelectedValues = currentSelected.map(s => s.system);
+    // Get all custom strategies from the combined list
+    const customStrategies = combinedStrategies.filter(item => item.group === "Custom Columns");
+    // Filter out custom ones that are not already selected
+    const newCustomStrategies = customStrategies.filter(item => !currentSelectedValues.includes(item.value));
+    // Convert new custom strategies into the selection format
+    const newCustomSelections = newCustomStrategies.map(item => ({
+      system: item.value,
+      weightage: 0, // will be recalculated below
+      leverage: '1',
+      column: ''
+    }));
+    // Merge current selection with the new custom selections
+    const unionSelection = [...currentSelected, ...newCustomSelections];
+    const weight = 100 / unionSelection.length;
+    const updatedSystems = unionSelection.map(s => ({
+      system: s.system,
+      weightage: parseFloat(weight.toFixed(6)),
+      leverage: '1',
+      column: ''
+    }));
+    onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
 
   const handleSystemInputChange = (systemIndex, field, value) => {
@@ -234,14 +259,14 @@ const PortfolioCalculatorForm = ({
     (strategy) => strategy.group === "Index"
   );
 
-  // Compute total weightages for display
+  // Compute total weightages for display (using 6 decimals)
   const totalStrategiesWeight = (portfolioData.selected_systems || [])
     .reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0)
-    .toFixed(2);
+    .toFixed(6);
 
   const totalDebtFundsWeight = (portfolioData.selected_debtfunds || [])
     .reduce((sum, fund) => sum + (parseFloat(fund.weightage) || 0), 0)
-    .toFixed(2);
+    .toFixed(6);
 
   return (
     <div className='border p-4 mb-4'>
@@ -271,7 +296,12 @@ const PortfolioCalculatorForm = ({
 
       {/* Choose Strategies */}
       <Form.Group className="mb-4">
-        <Form.Label>Choose strategies *</Form.Label>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <Form.Label>Choose strategies *</Form.Label>
+          <Button variant="secondary" size="sm" onClick={handleSelectAllCustomStrategies}>
+            Select All Custom Strategies
+          </Button>
+        </div>
         <Multiselect
           options={combinedStrategies}
           displayValue="name"
@@ -280,6 +310,10 @@ const PortfolioCalculatorForm = ({
           groupBy="group"
           showCheckbox={true}
           placeholder="Select strategies"
+          // Pass selectedValues to keep the multiselect in sync with portfolioData
+          selectedValues={combinedStrategies.filter(item =>
+            (portfolioData.selected_systems || []).some(selected => selected.system === item.value)
+          )}
           style={{
             chips: { background: 'var(--bs-primary)' },
             searchBox: { borderRadius: '0.375rem' }
@@ -297,7 +331,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="0.01"
+                  step="0.000001"
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
@@ -351,7 +385,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="0.01"
+                  step="0.000001" 
                   placeholder="Weightage"
                   value={debtfund.weightage}
                   onChange={(e) => handleDebtFundInputChange(dIndex, 'weightage', e.target.value)}
