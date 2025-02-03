@@ -154,16 +154,7 @@ const PortfolioCalculatorForm = ({
     name: fund.isJsonColumn ? `📊 ${fund.label}` : fund.label
   }));
 
-  // Helper function to distribute remaining weight
-  const distributeRemainingWeight = (systems, totalAssigned, target = 100) => {
-    let remaining = target - totalAssigned;
-    for (let i = 0; i < systems.length && remaining > 0; i++) {
-      systems[i].weightage += 1;
-      remaining -= 1;
-    }
-    return systems;
-  };
-
+  // Updated to use decimal weights
   const handleStrategySelect = (selectedList) => {
     const totalStrategies = selectedList.length;
     if (totalStrategies === 0) {
@@ -171,27 +162,20 @@ const PortfolioCalculatorForm = ({
       return;
     }
 
-    const baseWeight = Math.floor(100 / totalStrategies);
-    const remainder = 100 - (baseWeight * totalStrategies);
-
-    const updatedSystems = selectedList.map((item, idx) => ({
+    // Calculate the equal weight (allowing decimals)
+    const weight = 100 / totalStrategies;
+    const updatedSystems = selectedList.map((item) => ({
       system: item.value,
-      weightage: baseWeight,
+      weightage: parseFloat(weight.toFixed(2)), // Rounded to 2 decimals; adjust as needed
       leverage: '1',
       column: '',
     }));
 
-    // Distribute the remaining weight
-    if (remainder > 0) {
-      for (let i = 0; i < remainder; i++) {
-        updatedSystems[i].weightage += 1;
-      }
-    }
-
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
     setTotalWeightError('');
   };
-  
+
+  // Updated to use decimal weights for debt funds as well
   const handleDebtFundSelect = (selectedList) => {
     const count = selectedList.length;
     if (count === 0) {
@@ -199,21 +183,12 @@ const PortfolioCalculatorForm = ({
       return;
     }
 
-    const baseWeight = Math.floor(100 / count);
-    const remainder = 100 - (baseWeight * count);
-
-    const updatedDebtFunds = selectedList.map((item, idx) => ({
+    const weight = 100 / count;
+    const updatedDebtFunds = selectedList.map((item) => ({
       debtfund: item.value,
-      weightage: baseWeight,
+      weightage: parseFloat(weight.toFixed(2)),
       leverage: '1'
     }));
-
-    // Distribute the remaining weight
-    if (remainder > 0) {
-      for (let i = 0; i < remainder; i++) {
-        updatedDebtFunds[i].weightage += 1;
-      }
-    }
 
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
   };
@@ -222,8 +197,8 @@ const PortfolioCalculatorForm = ({
     const updatedSystems = [...(portfolioData.selected_systems || [])];
 
     if (field === 'weightage') {
-      // Parse input as integer
-      let newWeight = parseInt(value, 10);
+      // Parse input as float now to allow decimals
+      let newWeight = parseFloat(value);
       if (isNaN(newWeight)) newWeight = 0;
       newWeight = Math.min(Math.max(newWeight, 0), 100);
 
@@ -233,7 +208,7 @@ const PortfolioCalculatorForm = ({
       };
 
       // Validate total weightage
-      const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseInt(system.weightage, 10) || 0), 0);
+      const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0);
       if (totalWeight !== 100) {
         setTotalWeightError(`Total weightage is ${totalWeight}%. It should sum up to 100%.`);
       } else {
@@ -253,8 +228,7 @@ const PortfolioCalculatorForm = ({
   const handleDebtFundInputChange = (debtFundIndex, field, value) => {
     const updatedDebtFunds = [...(portfolioData.selected_debtfunds || [])];
     if (field === 'weightage') {
-      // Parse input as integer
-      let newWeight = parseInt(value, 10);
+      let newWeight = parseFloat(value);
       if (isNaN(newWeight)) newWeight = 0;
       newWeight = Math.min(Math.max(newWeight, 0), 100);
 
@@ -264,14 +238,13 @@ const PortfolioCalculatorForm = ({
       };
 
       // Validate total weightage
-      const totalWeight = updatedDebtFunds.reduce((sum, fund) => sum + (parseInt(fund.weightage, 10) || 0), 0);
+      const totalWeight = updatedDebtFunds.reduce((sum, fund) => sum + (parseFloat(fund.weightage) || 0), 0);
       if (totalWeight !== 100) {
         setTotalWeightError(`Total debt funds weightage is ${totalWeight}%. It should sum up to 100%.`);
       } else {
         setTotalWeightError('');
       }
     } else {
-      // Handle non-weightage fields (like leverage)
       updatedDebtFunds[debtFundIndex] = {
         ...updatedDebtFunds[debtFundIndex],
         [field]: value,
@@ -298,11 +271,11 @@ const PortfolioCalculatorForm = ({
   useEffect(() => {
     if (portfolioData.selected_systems) {
       const totalWeight = portfolioData.selected_systems.reduce(
-        (sum, system) => sum + (parseInt(system.weightage, 10) || 0),
+        (sum, system) => sum + (parseFloat(system.weightage) || 0),
         0
       );
       if (totalWeight !== 100) {
-        // setTotalWeightError(`Total weightage is ${totalWeight}%. It should sum up to 100%.`);
+        // Optionally set error message here if needed
       } else {
         setTotalWeightError('');
       }
@@ -310,11 +283,11 @@ const PortfolioCalculatorForm = ({
 
     if (portfolioData.selected_debtfunds) {
       const totalDebtWeight = portfolioData.selected_debtfunds.reduce(
-        (sum, fund) => sum + (parseInt(fund.weightage, 10) || 0),
+        (sum, fund) => sum + (parseFloat(fund.weightage) || 0),
         0
       );
       if (totalDebtWeight !== 100) {
-        // setTotalWeightError(`Total debt funds weightage is ${totalDebtWeight}%. It should sum up to 100%.`);
+        // Optionally set error message here if needed
       } else {
         setTotalWeightError('');
       }
@@ -328,7 +301,7 @@ const PortfolioCalculatorForm = ({
         <Button
           variant="danger"
           onClick={() => onRemove(index)}
-          disabled={isRemoveDisabled} // Use the prop here
+          disabled={isRemoveDisabled}
         >
           {isRemoveDisabled ? 'Cannot Remove' : 'Remove'}
         </Button>
@@ -375,7 +348,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="1" // Ensure whole numbers
+                  step="0.01" // Allow decimals
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
@@ -387,7 +360,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="1" // Ensure whole numbers
+                step="1"
                 placeholder="Leverage"
                 value={system.leverage}
                 onChange={(e) => handleSystemInputChange(sIndex, 'leverage', e.target.value)}
@@ -425,7 +398,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="1" // Ensure whole numbers
+                  step="0.01" // Allow decimals
                   placeholder="Weightage"
                   value={debtfund.weightage}
                   onChange={(e) => handleDebtFundInputChange(dIndex, 'weightage', e.target.value)}
@@ -437,7 +410,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="1" // Ensure whole numbers
+                step="1"
                 placeholder="Leverage"
                 value={debtfund.leverage}
                 onChange={(e) => handleDebtFundInputChange(dIndex, 'leverage', e.target.value)}
@@ -454,7 +427,7 @@ const PortfolioCalculatorForm = ({
           as="select"
           value={portfolioData.benchmark || ""}
           onChange={(e) => handleInputChange("benchmark", e.target.value)}
-          disabled={isBenchmarkDisabled} // Disable based on the prop
+          disabled={isBenchmarkDisabled}
         >
           <option value="" disabled>
             Select a benchmark
@@ -466,7 +439,7 @@ const PortfolioCalculatorForm = ({
           ))}
         </Form.Control>
       </Form.Group>
-      
+
       {/* Investment Period */}
       <Form.Group className="mb-4">
         <Form.Label>Investment Period *</Form.Label>
@@ -513,7 +486,7 @@ const PortfolioCalculatorForm = ({
               <InputGroup.Text>₹</InputGroup.Text>
               <Form.Control
                 type="text"
-                value={new Intl.NumberFormat('en-IN').format(portfolioData.invest_amount || '')} // Format for display
+                value={new Intl.NumberFormat('en-IN').format(portfolioData.invest_amount || '')}
                 onChange={(e) => handleInputChange('invest_amount', e.target.value)}
                 placeholder="Investment Amount"
               />
@@ -525,7 +498,7 @@ const PortfolioCalculatorForm = ({
                 type="number"
                 min="0"
                 max="100"
-                step="1" // Ensure whole numbers
+                step="1"
                 value={portfolioData.cash_percent}
                 onChange={e => handleInputChange('cash_percent', e.target.value)}
                 placeholder="Cash Percentage"
@@ -570,13 +543,13 @@ PortfolioCalculatorForm.propTypes = {
     name: PropTypes.string,
     selected_systems: PropTypes.arrayOf(PropTypes.shape({
       system: PropTypes.string,
-      weightage: PropTypes.number, // Changed to number for integer values
+      weightage: PropTypes.number,
       leverage: PropTypes.string,
       column: PropTypes.string
     })),
     selected_debtfunds: PropTypes.arrayOf(PropTypes.shape({
       debtfund: PropTypes.string,
-      weightage: PropTypes.number, // Changed to number for integer values
+      weightage: PropTypes.number,
       leverage: PropTypes.string
     })),
     benchmark: PropTypes.string,
@@ -593,7 +566,8 @@ PortfolioCalculatorForm.propTypes = {
   isRemoveDisabled: PropTypes.bool,
   isFirstPortfolio: PropTypes.bool,
   masterStartDate: PropTypes.instanceOf(Date),
-  masterEndDate: PropTypes.instanceOf(Date)
+  masterEndDate: PropTypes.instanceOf(Date),
+  isBenchmarkDisabled: PropTypes.bool
 };
 
 export default PortfolioCalculatorForm;
