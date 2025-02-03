@@ -1,5 +1,5 @@
 // PortfolioCalculatorForm.js
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Form,
   Button,
@@ -119,16 +119,14 @@ const PortfolioCalculatorForm = ({
   masterEndDate = null,
   isBenchmarkDisabled = false,
 }) => {
-
-  const [totalWeightError, setTotalWeightError] = useState('');
-
+  // Remove the total weight error state as we no longer enforce 100%
+  
   // Handle form data changes
   const handleInputChange = (field, value) => {
     if (field === "invest_amount") {
       // Remove commas for processing
       const rawValue = value.replace(/,/g, '');
       if (!isNaN(rawValue)) {
-        // Update the state with the raw value
         onChange(index, { ...portfolioData, [field]: rawValue });
       }
     } else {
@@ -156,72 +154,51 @@ const PortfolioCalculatorForm = ({
 
   // Updated to use decimal weights
   const handleStrategySelect = (selectedList) => {
-    const totalStrategies = selectedList.length;
-    if (totalStrategies === 0) {
+    if (selectedList.length === 0) {
       onChange(index, { ...portfolioData, selected_systems: [] });
       return;
     }
-
-    // Calculate the equal weight (allowing decimals)
-    const weight = 100 / totalStrategies;
+    const weight = 100 / selectedList.length;
     const updatedSystems = selectedList.map((item) => ({
       system: item.value,
-      weightage: parseFloat(weight.toFixed(2)), // Rounded to 2 decimals; adjust as needed
+      weightage: parseFloat(weight.toFixed(2)),
       leverage: '1',
       column: '',
     }));
-
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
-    setTotalWeightError('');
   };
 
   // Updated to use decimal weights for debt funds as well
   const handleDebtFundSelect = (selectedList) => {
-    const count = selectedList.length;
-    if (count === 0) {
+    if (selectedList.length === 0) {
       onChange(index, { ...portfolioData, selected_debtfunds: [] });
       return;
     }
-
-    const weight = 100 / count;
+    const weight = 100 / selectedList.length;
     const updatedDebtFunds = selectedList.map((item) => ({
       debtfund: item.value,
       weightage: parseFloat(weight.toFixed(2)),
       leverage: '1'
     }));
-
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
   };
 
   const handleSystemInputChange = (systemIndex, field, value) => {
     const updatedSystems = [...(portfolioData.selected_systems || [])];
-
     if (field === 'weightage') {
-      // Parse input as float now to allow decimals
       let newWeight = parseFloat(value);
       if (isNaN(newWeight)) newWeight = 0;
       newWeight = Math.min(Math.max(newWeight, 0), 100);
-
       updatedSystems[systemIndex] = {
         ...updatedSystems[systemIndex],
         weightage: newWeight,
       };
-
-      // Validate total weightage
-      const totalWeight = updatedSystems.reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0);
-      if (totalWeight !== 100) {
-        setTotalWeightError(`Total weightage is ${totalWeight}%. It should sum up to 100%.`);
-      } else {
-        setTotalWeightError('');
-      }
     } else {
-      // Handle non-weightage fields (like leverage)
       updatedSystems[systemIndex] = {
         ...updatedSystems[systemIndex],
         [field]: value,
       };
     }
-
     onChange(index, { ...portfolioData, selected_systems: updatedSystems });
   };
 
@@ -231,26 +208,16 @@ const PortfolioCalculatorForm = ({
       let newWeight = parseFloat(value);
       if (isNaN(newWeight)) newWeight = 0;
       newWeight = Math.min(Math.max(newWeight, 0), 100);
-
       updatedDebtFunds[debtFundIndex] = {
         ...updatedDebtFunds[debtFundIndex],
         weightage: newWeight,
       };
-
-      // Validate total weightage
-      const totalWeight = updatedDebtFunds.reduce((sum, fund) => sum + (parseFloat(fund.weightage) || 0), 0);
-      if (totalWeight !== 100) {
-        setTotalWeightError(`Total debt funds weightage is ${totalWeight}%. It should sum up to 100%.`);
-      } else {
-        setTotalWeightError('');
-      }
     } else {
       updatedDebtFunds[debtFundIndex] = {
         ...updatedDebtFunds[debtFundIndex],
         [field]: value,
       };
     }
-
     onChange(index, { ...portfolioData, selected_debtfunds: updatedDebtFunds });
   };
 
@@ -267,32 +234,14 @@ const PortfolioCalculatorForm = ({
     (strategy) => strategy.group === "Index"
   );
 
-  // Validate total weightage on component mount/update
-  useEffect(() => {
-    if (portfolioData.selected_systems) {
-      const totalWeight = portfolioData.selected_systems.reduce(
-        (sum, system) => sum + (parseFloat(system.weightage) || 0),
-        0
-      );
-      if (totalWeight !== 100) {
-        // Optionally set error message here if needed
-      } else {
-        setTotalWeightError('');
-      }
-    }
+  // Compute total weightages for display
+  const totalStrategiesWeight = (portfolioData.selected_systems || [])
+    .reduce((sum, system) => sum + (parseFloat(system.weightage) || 0), 0)
+    .toFixed(2);
 
-    if (portfolioData.selected_debtfunds) {
-      const totalDebtWeight = portfolioData.selected_debtfunds.reduce(
-        (sum, fund) => sum + (parseFloat(fund.weightage) || 0),
-        0
-      );
-      if (totalDebtWeight !== 100) {
-        // Optionally set error message here if needed
-      } else {
-        setTotalWeightError('');
-      }
-    }
-  }, [portfolioData.selected_systems, portfolioData.selected_debtfunds]);
+  const totalDebtFundsWeight = (portfolioData.selected_debtfunds || [])
+    .reduce((sum, fund) => sum + (parseFloat(fund.weightage) || 0), 0)
+    .toFixed(2);
 
   return (
     <div className='border p-4 mb-4'>
@@ -348,7 +297,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="0.01" // Allow decimals
+                  step="0.01"
                   placeholder="Weightage"
                   value={system.weightage}
                   onChange={(e) => handleSystemInputChange(sIndex, 'weightage', e.target.value)}
@@ -368,7 +317,11 @@ const PortfolioCalculatorForm = ({
             </Col>
           </Row>
         ))}
-        {totalWeightError && <Alert variant="warning">{totalWeightError}</Alert>}
+        {portfolioData.selected_systems && portfolioData.selected_systems.length > 0 && (
+          <Alert variant="info">
+            Total strategies weightage: {totalStrategiesWeight}%
+          </Alert>
+        )}
       </Form.Group>
 
       {/* Choose Debt Funds */}
@@ -398,7 +351,7 @@ const PortfolioCalculatorForm = ({
                   type="number"
                   min="0"
                   max="100"
-                  step="0.01" // Allow decimals
+                  step="0.01"
                   placeholder="Weightage"
                   value={debtfund.weightage}
                   onChange={(e) => handleDebtFundInputChange(dIndex, 'weightage', e.target.value)}
@@ -418,6 +371,11 @@ const PortfolioCalculatorForm = ({
             </Col>
           </Row>
         ))}
+        {portfolioData.selected_debtfunds && portfolioData.selected_debtfunds.length > 0 && (
+          <Alert variant="info">
+            Total debt funds weightage: {totalDebtFundsWeight}%
+          </Alert>
+        )}
       </Form.Group>
 
       {/* Benchmark Selection */}
