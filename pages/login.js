@@ -99,8 +99,8 @@ export default function Login() {
             }}
           >
             <p className="lead">
-              "Invest in your dreams, invest in your future. True wealth is built
-              on wise decisions."
+            &quot;Invest in your dreams, invest in your future. True wealth is built
+              on wise decisions.&quot;
             </p>
           </div>
         </Col>
