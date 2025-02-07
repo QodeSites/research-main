@@ -13,6 +13,7 @@ import {
 } from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa'; // For sort icons
+import { parse } from 'cookie';
 
 const IndicesPage = () => {
     const [indicesData, setIndicesData] = useState(null);
@@ -396,4 +397,22 @@ const IndicesPage = () => {
     );
 };
 
+
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
 export default IndicesPage;

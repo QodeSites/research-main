@@ -12,6 +12,8 @@ import {
     FormControl 
 } from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
+import { parse } from 'cookie';
+
 
 const ReturnsComparisonPage = () => {
     const [indicesData, setIndicesData] = useState(null);
@@ -385,5 +387,25 @@ const ReturnsComparisonPage = () => {
         </div>
     );
 };
+
+
+// Server-side protection: Check for the "auth" cookie and redirect if missing
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
 
 export default ReturnsComparisonPage;

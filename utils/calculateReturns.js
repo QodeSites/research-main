@@ -3,7 +3,7 @@ export function calculateReturns(data, period) {
 
     // Ensure data is sorted by date in ascending order
     const sortedData = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-
+    
     const currentEntry = sortedData[sortedData.length - 1];
     const currentValue = currentEntry.nav; // Latest NAV
     const currentDate = new Date(currentEntry.date); // Latest date
@@ -46,11 +46,8 @@ export function calculateReturns(data, period) {
         const daysBack = daysMap[period];
         
         const requiredIndex = sortedData.length - 1 - daysBack;
-        console.log('sortedData', daysBack);
-        
-        console.log('requiredIndex', data[requiredIndex]);
-        
 
+        
         if (requiredIndex < 0) {
             return '-'; // Not enough data points
         }
@@ -62,9 +59,17 @@ export function calculateReturns(data, period) {
         comparisonValue = comparisonData.nav;
 
         yearDiff = daysBack / 365.25; // Approximate year difference
+        if(sortedData[0].indices === 'NIFTY 50') {
+            console.log('requiredIndex', requiredIndex);
+            console.log('daysBack', daysBack);
+            console.log('indices', sortedData[0].indices);
+            console.log('comparisonData', comparisonData);
+            console.log('comparisonValue', comparisonValue);
 
+        }
         // Use absolute returns for periods < 1 year
         return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
+        
     } else {
         // Handle periods 1 week and above with backfilling
         let comparisonDate;
@@ -74,11 +79,9 @@ export function calculateReturns(data, period) {
             // For 1W, go back exactly 7 days
             comparisonDate = addDays(currentDate, -7);
             minimumDataPoints = 5; // Require at least 5 trading days for weekly data
-        } else if (period === '10D') {
-            // For 10D, go back exactly 10 days
-            comparisonDate = addDays(currentDate, -10);
-            minimumDataPoints = 8; // Require at least 8 trading days for 10 days
-        }else {
+        } 
+        
+        else {
             // For periods >= 1M, find the same date in the previous month(s)
             switch (period) {
                 case '1M':
@@ -126,7 +129,13 @@ export function calculateReturns(data, period) {
         const dataPointsInPeriod = sortedData.filter(d => 
             new Date(d.date) >= comparisonDate && new Date(d.date) <= currentDate
         ).length;
-
+        if(sortedData[0].indices === 'NIFTY 50') {
+            console.log('dataPointsInPeriod', dataPointsInPeriod);
+            console.log('minimumDataPoints', minimumDataPoints);
+            console.log('comparisonDate', comparisonDate);
+            console.log('currentDate', currentDate);
+            console.log('indices', sortedData[0].indices);
+        }
         if (dataPointsInPeriod < minimumDataPoints) {
             return '-'; // Not enough data points in the period
         }

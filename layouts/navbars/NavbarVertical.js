@@ -15,6 +15,7 @@ import { BarChart, TrendingUp, Clipboard, ChevronDown } from "react-feather";
 import {
   Card,
 } from "react-bootstrap";
+import { parse } from "cookie";
 
 const NavbarVertical = (props) => {
   const [activeMenus, setActiveMenus] = useState([]);
@@ -120,5 +121,23 @@ const NavbarVertical = (props) => {
     </Fragment>
   );
 };
+
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
 
 export default NavbarVertical;

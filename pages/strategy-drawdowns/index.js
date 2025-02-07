@@ -22,6 +22,7 @@ import { formatCurrency } from 'utils/formatCurrency';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import formatDate from 'utils/formatDate';
+import { parse } from 'cookie';
 
 const IndexTable = () => {
     const [data, setData] = useState([]);
@@ -556,4 +557,24 @@ const IndexTable = () => {
     );
 };
 
+
+// Server-side protection: Check for the "auth" cookie and redirect if missing
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
 export default IndexTable;
+

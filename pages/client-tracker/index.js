@@ -1,6 +1,8 @@
+// pages/ClientTracker.js
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Table, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { parse } from 'cookie';
 
 const ClientTracker = () => {
     const [data, setData] = useState({
@@ -227,7 +229,6 @@ const ClientTracker = () => {
                 item.name.toLowerCase().includes(query) ||
                 item.nuvama_code.toLowerCase().includes(query) ||
                 item.account.toLowerCase().includes(query)
-                // Add more fields if necessary
             );
         });
     }, [sortedPortfolioData, debouncedPortfolioSearch]);
@@ -240,7 +241,6 @@ const ClientTracker = () => {
                 item.name.toLowerCase().includes(query) ||
                 item.nuvama_code.toLowerCase().includes(query) ||
                 item.account.toLowerCase().includes(query)
-                // Add more fields if necessary
             );
         });
     }, [sortedReturnsData, debouncedReturnsSearch]);
@@ -278,7 +278,7 @@ const ClientTracker = () => {
         return {
             ...totals,
             cash_percentage: totalPortfolioValue ? (totals.cash / totalPortfolioValue) * 100 : 0,
-            derivatives_percentage: totals.derivatives_percentage / (filteredPortfolioData.length || 1), // Average for derivatives
+            derivatives_percentage: totals.derivatives_percentage / (filteredPortfolioData.length || 1),
         };
     }, [filteredPortfolioData]);
 
@@ -300,74 +300,72 @@ const ClientTracker = () => {
         };
     }, [filteredReturnsData]);
 
-    // Benchmark Table Component
-    // BenchmarkTable Component with Horizontal Layout
-const BenchmarkTable = ({ benchmark }) => {
-    if (!benchmark) return null;
+    // Benchmark Table Component with Horizontal Layout
+    const BenchmarkTable = ({ benchmark }) => {
+        if (!benchmark) return null;
 
-    const {
-        dataAsOf,
-        '10D': d10,
-        '1M': m1,
-        '3M': m3,
-        '6M': m6,
-        '9M': m9,
-        '1Y': y1,
-        '2Y': y2,
-        '3Y': y3,
-        '4Y': y4,
-        '5Y': y5,
-        'Since Inception': sinceInception,
-        'MDD': maxDrawdown,
-        Drawdown: mdd
-    } = benchmark;
+        const {
+            dataAsOf,
+            '10D': d10,
+            '1M': m1,
+            '3M': m3,
+            '6M': m6,
+            '9M': m9,
+            '1Y': y1,
+            '2Y': y2,
+            '3Y': y3,
+            '4Y': y4,
+            '5Y': y5,
+            'Since Inception': sinceInception,
+            'MDD': maxDrawdown,
+            Drawdown: mdd
+        } = benchmark;
 
-    return (
-        <div className="mb-4">
-            <h5>Benchmark: NIFTY 50</h5>
-            <p>Data As Of: {new Date(dataAsOf).toLocaleDateString('en-GB')}</p>
-            <Table bordered striped hover responsive>
-                <thead>
-                    <tr>
-                        <th>Period</th>
-                        <th>10D</th>
-                        <th>1M</th>
-                        <th>3M</th>
-                        <th>6M</th>
-                        <th>9M</th>
-                        <th>1Y</th>
-                        <th>2Y</th>
-                        <th>3Y</th>
-                        <th>4Y</th>
-                        <th>5Y</th>
-                        <th>Since Inception</th>
-                        <th>MDD</th>
-                        <th>Current Drawdown</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Return (%)</td>
-                        <td>{formatNumber(d10)}%</td>
-                        <td>{formatNumber(m1)}%</td>
-                        <td>{formatNumber(m3)}%</td>
-                        <td>{formatNumber(m6)}%</td>
-                        <td>{formatNumber(m9)}%</td>
-                        <td>{formatNumber(y1)}%</td>
-                        <td>{formatNumber(y2)}%</td>
-                        <td>{formatNumber(y3)}%</td>
-                        <td>{formatNumber(y4)}%</td>
-                        <td>{formatNumber(y5)}%</td>
-                        <td>{formatNumber(sinceInception)}%</td>
-                        <td>{(maxDrawdown)}</td>
-                        <td>{formatNumber(mdd)}%</td>
-                    </tr>
-                </tbody>
-            </Table>
-        </div>
-    );
-};
-
+        return (
+            <div className="mb-4">
+                <h5>Benchmark: NIFTY 50</h5>
+                <p>Data As Of: {new Date(dataAsOf).toLocaleDateString('en-GB')}</p>
+                <Table bordered striped hover responsive>
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>10D</th>
+                            <th>1M</th>
+                            <th>3M</th>
+                            <th>6M</th>
+                            <th>9M</th>
+                            <th>1Y</th>
+                            <th>2Y</th>
+                            <th>3Y</th>
+                            <th>4Y</th>
+                            <th>5Y</th>
+                            <th>Since Inception</th>
+                            <th>MDD</th>
+                            <th>Current Drawdown</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Return (%)</td>
+                            <td>{formatNumber(d10)}%</td>
+                            <td>{formatNumber(m1)}%</td>
+                            <td>{formatNumber(m3)}%</td>
+                            <td>{formatNumber(m6)}%</td>
+                            <td>{formatNumber(m9)}%</td>
+                            <td>{formatNumber(y1)}%</td>
+                            <td>{formatNumber(y2)}%</td>
+                            <td>{formatNumber(y3)}%</td>
+                            <td>{formatNumber(y4)}%</td>
+                            <td>{formatNumber(y5)}%</td>
+                            <td>{formatNumber(sinceInception)}%</td>
+                            <td>{maxDrawdown}</td>
+                            <td>{formatNumber(mdd)}%</td>
+                        </tr>
+                    </tbody>
+                </Table>
+            </div>
+        );
+    };
 
     return (
         <div className="m-6">
@@ -601,5 +599,24 @@ const BenchmarkTable = ({ benchmark }) => {
         </div>
     );
 };
+
+// Server-side protection: Check for the "auth" cookie and redirect if missing
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
 
 export default ClientTracker;
