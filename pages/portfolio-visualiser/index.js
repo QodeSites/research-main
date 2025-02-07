@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PortfolioManager from 'components/PortfolioManager';
 import { Container, Spinner, Alert, Tab, Tabs } from 'react-bootstrap';
 import CombinedPortfolioResults from 'components/PortfolioResult';
+import { parse } from 'cookie';
 
 // API endpoint configuration based on environment
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
@@ -106,5 +107,15 @@ const PortfolioIndex = () => {
     </Container>
   );
 };
+
+
+export async function getServerSideProps(context) {
+  const { req } = context;
+  const cookies = req.headers.cookie || '';
+  const parsedCookies = parse(cookies);
+  const isLoggedIn = Boolean(parsedCookies.auth);
+
+  return { props: { isLoggedIn } };
+}
 
 export default PortfolioIndex;
