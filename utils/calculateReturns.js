@@ -1,172 +1,95 @@
-export function calculateReturns(data, period) {
+export function calculateReturns(data, period, validTradingDays) {
     if (!data || data.length === 0) return '-';
 
-    // Ensure data is sorted by date in ascending order
     const sortedData = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-
     const currentEntry = sortedData[sortedData.length - 1];
-    const currentValue = currentEntry.nav; // Latest NAV
-    const currentDate = new Date(currentEntry.date); // Latest date
+    const currentValue = currentEntry.nav;
+    const currentDate = new Date(currentEntry.date);
 
     let comparisonValue;
     let yearDiff;
 
-    // Handle "Since Inception" separately
     if (period === 'Since Inception') {
         const inceptionData = sortedData[0];
-        if (!inceptionData || !inceptionData.nav) {
-            return '-'; // No inception data available
-        }
+        if (!inceptionData || !inceptionData.nav) return '-';
 
         comparisonValue = inceptionData.nav;
         const inceptionDate = new Date(inceptionData.date);
         yearDiff = (currentDate - inceptionDate) / (1000 * 60 * 60 * 24 * 365.25);
 
-        if (yearDiff <= 1) {
-            // Use absolute returns for periods <= 1 year
-            return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
-        } else {
-            // Use CAGR for periods > 1 year
-            const cagr = (Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100;
-            return cagr.toFixed(2);
-        }
+        return yearDiff <= 1 
+            ? (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2)
+            : ((Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100).toFixed(2);
     }
 
-    // Define periods less than 1 week
     const shortPeriods = ['1D', '2D', '3D'];
-
     if (shortPeriods.includes(period)) {
-        // Handle periods less than 1 week by direct indexing
-        const daysMap = {
-            '1D': 1,
-            '2D': 2,
-            '3D': 3,
-        };
+        const daysMap = { '1D': 1, '2D': 2, '3D': 3 };
+        const targetDaysBack = daysMap[period];
 
-        const daysBack = daysMap[period];
-
-        const requiredIndex = sortedData.length - 1 - daysBack;
-
-
-        if (requiredIndex < 0) {
-            return '-'; // Not enough data points
+        let validDaysCount = 0;
+        let comparisonData = null;
+        
+        for (let i = sortedData.length - 2; i >= 0; i--) {
+            const dateStr = new Date(sortedData[i].date).toISOString().split('T')[0];
+            if (!validTradingDays || validTradingDays.has(dateStr)) {
+                validDaysCount++;
+                if (validDaysCount === targetDaysBack) {
+                    comparisonData = sortedData[i];
+                    break;
+                }
+            }
         }
 
-        const comparisonData = sortedData[requiredIndex];
-        if (!comparisonData || !comparisonData.nav) {
-            return '-'; // Return dash if data is missing
-        }
+        if (!comparisonData || !comparisonData.nav) return '-';
+        
         comparisonValue = comparisonData.nav;
-
-        yearDiff = daysBack / 365.25; // Approximate year difference
-        if (sortedData[0].indices === 'NIFTY 50') {
-            console.log('requiredIndex', requiredIndex);
-            console.log('daysBack', daysBack);
-            console.log('indices', sortedData[0].indices);
-            console.log('comparisonData', comparisonData);
-            console.log('comparisonValue', comparisonValue);
-
-        }
-        // Use absolute returns for periods < 1 year
         return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
-
-    } else {
-        // Handle periods 1 week and above with backfilling
-        let comparisonDate;
-        let minimumDataPoints;
-
-        if (period === '1W') {
-            // For 1W, go back exactly 7 days
-            comparisonDate = addDays(currentDate, -7);
-            minimumDataPoints = 5; // Require at least 5 trading days for weekly data
-        } else if (period === '10D') {
-            comparisonDate = addDays(currentDate, -10)
-            minimumDataPoints = 7;
-        } else {
-            // For periods >= 1M, find the same date in the previous month(s)
-            switch (period) {
-                case '1M':
-                    comparisonDate = subtractMonths(currentDate, 1);
-                    minimumDataPoints = 15; // Require at least 15 trading days for monthly data
-                    break;
-                case '3M':
-                    comparisonDate = subtractMonths(currentDate, 3);
-                    minimumDataPoints = 45; // Minimum trading days for 3 months
-                    break;
-                case '6M':
-                    comparisonDate = subtractMonths(currentDate, 6);
-                    minimumDataPoints = 90; // Minimum trading days for 6 months
-                    break;
-                case '9M':
-                    comparisonDate = subtractMonths(currentDate, 9);
-                    minimumDataPoints = 135; // Minimum trading days for 9 months
-                    break;
-                case '1Y':
-                    comparisonDate = subtractYears(currentDate, 1);
-                    minimumDataPoints = 180; // Minimum trading days for 1 year
-                    break;
-                case '2Y':
-                    comparisonDate = subtractYears(currentDate, 2);
-                    minimumDataPoints = 360; // Minimum trading days for 2 years
-                    break;
-                case '3Y':
-                    comparisonDate = subtractYears(currentDate, 3);
-                    minimumDataPoints = 540; // Minimum trading days for 3 years
-                    break;
-                case '4Y':
-                    comparisonDate = subtractYears(currentDate, 4);
-                    minimumDataPoints = 720; // Minimum trading days for 4 years
-                    break;
-                case '5Y':
-                    comparisonDate = subtractYears(currentDate, 5);
-                    minimumDataPoints = 900; // Minimum trading days for 5 years
-                    break;
-                default:
-                    return '-';
-            }
-        }
-
-        // Check if we have enough data points in the period
-        const dataPointsInPeriod = sortedData.filter(d =>
-            new Date(d.date) >= comparisonDate && new Date(d.date) <= currentDate
-        ).length;
-        if (sortedData[0].indices === 'NIFTY 50') {
-            console.log('dataPointsInPeriod', dataPointsInPeriod);
-            console.log('minimumDataPoints', minimumDataPoints);
-            console.log('comparisonDate', comparisonDate);
-            console.log('currentDate', currentDate);
-            console.log('indices', sortedData[0].indices);
-        }
-        if (dataPointsInPeriod < minimumDataPoints) {
-            return '-'; // Not enough data points in the period
-        }
-
-        // Find the NAV on the comparison date or the most recent prior date
-        const comparisonDataFound = findClosestData(sortedData, comparisonDate);
-
-        if (!comparisonDataFound || !comparisonDataFound.nav) {
-            return '-'; // No data available for the comparison date or any prior date
-        }
-
-        comparisonValue = comparisonDataFound.nav;
-        const actualComparisonDate = new Date(comparisonDataFound.date);
-
-        // Calculate exact year difference
-        yearDiff = (currentDate - actualComparisonDate) / (1000 * 60 * 60 * 24 * 365.25);
-
-        if (comparisonValue && comparisonValue !== 0) {
-            if (yearDiff <= 1) {
-                // Use absolute returns for periods <= 1 year
-                return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
-            } else {
-                // Use CAGR for periods > 1 year
-                const cagr = (Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100;
-                return cagr.toFixed(2);
-            }
-        }
-
-        return '-';
     }
+
+    let comparisonDate;
+    let minimumDataPoints;
+
+    if (period === '1W') {
+        comparisonDate = addDays(currentDate, -7);
+        minimumDataPoints = 5;
+    } else if (period === '10D') {
+        comparisonDate = addDays(currentDate, -10);
+        minimumDataPoints = 7;
+    } else {
+        const periodMap = {
+            '1M': [1, 15], '3M': [3, 45], '6M': [6, 90], '9M': [9, 135],
+            '1Y': [12, 180], '2Y': [24, 360], '3Y': [36, 540],
+            '4Y': [48, 720], '5Y': [60, 900]
+        };
+        
+        if (!periodMap[period]) return '-';
+        
+        const [months, points] = periodMap[period];
+        comparisonDate = subtractMonths(currentDate, months);
+        minimumDataPoints = points;
+    }
+
+    const dataPointsInPeriod = sortedData.filter(d => {
+        const date = new Date(d.date);
+        const dateStr = date.toISOString().split('T')[0];
+        return date >= comparisonDate && 
+               date <= currentDate && 
+               (!validTradingDays || validTradingDays.has(dateStr));
+    }).length;
+
+    if (dataPointsInPeriod < minimumDataPoints) return '-';
+
+    const comparisonDataFound = findClosestData(sortedData, comparisonDate, validTradingDays);
+    if (!comparisonDataFound || !comparisonDataFound.nav) return '-';
+
+    comparisonValue = comparisonDataFound.nav;
+    const actualComparisonDate = new Date(comparisonDataFound.date);
+    yearDiff = (currentDate - actualComparisonDate) / (1000 * 60 * 60 * 24 * 365.25);
+
+    return yearDiff <= 1
+        ? (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2)
+        : ((Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100).toFixed(2);
 }
 
 // Helper functions
