@@ -3,7 +3,7 @@ export function calculateReturns(data, period) {
 
     // Ensure data is sorted by date in ascending order
     const sortedData = data.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     const currentEntry = sortedData[sortedData.length - 1];
     const currentValue = currentEntry.nav; // Latest NAV
     const currentDate = new Date(currentEntry.date); // Latest date
@@ -44,10 +44,10 @@ export function calculateReturns(data, period) {
         };
 
         const daysBack = daysMap[period];
-        
+
         const requiredIndex = sortedData.length - 1 - daysBack;
 
-        
+
         if (requiredIndex < 0) {
             return '-'; // Not enough data points
         }
@@ -59,7 +59,7 @@ export function calculateReturns(data, period) {
         comparisonValue = comparisonData.nav;
 
         yearDiff = daysBack / 365.25; // Approximate year difference
-        if(sortedData[0].indices === 'NIFTY 50') {
+        if (sortedData[0].indices === 'NIFTY 50') {
             console.log('requiredIndex', requiredIndex);
             console.log('daysBack', daysBack);
             console.log('indices', sortedData[0].indices);
@@ -69,7 +69,7 @@ export function calculateReturns(data, period) {
         }
         // Use absolute returns for periods < 1 year
         return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
-        
+
     } else {
         // Handle periods 1 week and above with backfilling
         let comparisonDate;
@@ -79,9 +79,10 @@ export function calculateReturns(data, period) {
             // For 1W, go back exactly 7 days
             comparisonDate = addDays(currentDate, -7);
             minimumDataPoints = 5; // Require at least 5 trading days for weekly data
-        } 
-        
-        else {
+        } else if (period === '10D') {
+            comparisonDate = addDays(currentDate, -10)
+            minimumDataPoints = 7;
+        } else {
             // For periods >= 1M, find the same date in the previous month(s)
             switch (period) {
                 case '1M':
@@ -126,10 +127,10 @@ export function calculateReturns(data, period) {
         }
 
         // Check if we have enough data points in the period
-        const dataPointsInPeriod = sortedData.filter(d => 
+        const dataPointsInPeriod = sortedData.filter(d =>
             new Date(d.date) >= comparisonDate && new Date(d.date) <= currentDate
         ).length;
-        if(sortedData[0].indices === 'NIFTY 50') {
+        if (sortedData[0].indices === 'NIFTY 50') {
             console.log('dataPointsInPeriod', dataPointsInPeriod);
             console.log('minimumDataPoints', minimumDataPoints);
             console.log('comparisonDate', comparisonDate);
@@ -149,10 +150,10 @@ export function calculateReturns(data, period) {
 
         comparisonValue = comparisonDataFound.nav;
         const actualComparisonDate = new Date(comparisonDataFound.date);
-        
+
         // Calculate exact year difference
         yearDiff = (currentDate - actualComparisonDate) / (1000 * 60 * 60 * 24 * 365.25);
-        
+
         if (comparisonValue && comparisonValue !== 0) {
             if (yearDiff <= 1) {
                 // Use absolute returns for periods <= 1 year
@@ -179,20 +180,20 @@ function subtractMonths(date, months) {
     const result = new Date(date);
     const targetMonth = result.getMonth() - months;
     const targetYear = result.getFullYear() + Math.floor(targetMonth / 12);
-    
+
     // Calculate the target month properly, handling negative months
     const normalizedTargetMonth = ((targetMonth % 12) + 12) % 12;
-    
+
     result.setFullYear(targetYear);
     result.setMonth(normalizedTargetMonth);
-    
+
     // Handle end-of-month cases
     const originalDate = date.getDate();
     const newLastDay = new Date(targetYear, normalizedTargetMonth + 1, 0).getDate();
-    
+
     // Set to the last day of month if original date is greater than last day of target month
     result.setDate(Math.min(originalDate, newLastDay));
-    
+
     return result;
 }
 
@@ -214,23 +215,23 @@ function isLeapYear(year) {
 function findClosestData(sortedData, targetDate) {
     let closest = null;
     let minDiff = Infinity;
-    
+
     // First try to find exact match or closest previous date
     for (let i = sortedData.length - 1; i >= 0; i--) {
         const currentDate = new Date(sortedData[i].date);
         const diff = targetDate - currentDate;
-        
+
         if (diff >= 0 && diff < minDiff) {
             minDiff = diff;
             closest = sortedData[i];
         }
     }
-    
+
     // If no previous date found, take the earliest available date
     if (!closest && sortedData.length > 0) {
         closest = sortedData[0];
     }
-    
+
     return closest ? { ...closest, date: new Date(closest.date) } : null;
 }
 
