@@ -1,96 +1,136 @@
 import db from "lib/db";
 
 export default async function handler(req, res) {
-    const { method } = req;
+  const { method } = req;
 
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Set CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (method === 'OPTIONS') {
-        return res.status(200).end();
+  if (method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  if (method !== "GET") {
+    res.setHeader("Allow", ["GET"]);
+    return res.status(405).end(`Method ${method} Not Allowed`);
+  }
+
+  const { indices, startDate, endDate } = req.query;
+
+  try {
+    if (!indices) {
+      return res.status(400).json({ message: "indices parameter is required" });
     }
 
-    if (method !== 'GET') {
-        res.setHeader('Allow', ['GET']);
-        return res.status(405).end(`Method ${method} Not Allowed`);
+    // Convert the indices from URL to uppercase so they match the DB.
+    const indicesList = indices
+      .split(",")
+      .map((item) => item.trim().toUpperCase());
+
+    // Parse dates if provided; accepts any format that Date() can handle.
+    let parsedStartDate = null;
+    let parsedEndDate = null;
+    if (startDate) {
+      parsedStartDate = parseToISODate(startDate);
+      if (!parsedStartDate) {
+        return res
+          .status(400)
+          .json({ message: "Invalid startDate. Provide a valid date." });
+      }
+    }
+    if (endDate) {
+      parsedEndDate = parseToISODate(endDate);
+      if (!parsedEndDate) {
+        return res
+          .status(400)
+          .json({ message: "Invalid endDate. Provide a valid date." });
+      }
     }
 
-    const { indices, startDate, endDate } = req.query;
+    let dataRows = [];
 
-    try {
-        if (!indices) {
-            return res.status(400).json({ message: 'indices parameter is required' });
-        }
+    if (parsedStartDate) {
+      // Get the last available record for each index before the startDate using DISTINCT ON.
+      const lastAvailableNavQuery = `
+        SELECT DISTINCT ON (indices) indices, nav, date
+        FROM tblresearch_new
+        WHERE indices = ANY($1)
+          AND date < $2::date
+        ORDER BY indices, date DESC;
+      `;
+      const lastNavResult = await db.query(lastAvailableNavQuery, [
+        indicesList,
+        parsedStartDate,
+      ]);
 
-        const indicesList = indices.split(',').map(item => item.trim());
+      // Create an interpolation row for each index that has a previous record.
+      const interpolatedRows = lastNavResult.rows.map((row) => ({
+        indices: row.indices,
+        nav: row.nav,
+        date: parsedStartDate, // Already in YYYY-MM-DD format.
+      }));
 
-        // Validate dates
-        if (startDate && !isValidDate(startDate)) {
-            return res.status(400).json({ message: 'Invalid startDate format. Use YYYY-MM-DD.' });
-        }
-        if (endDate && !isValidDate(endDate)) {
-            return res.status(400).json({ message: 'Invalid endDate format. Use YYYY-MM-DD.' });
-        }
+      // Get all actual data from startDate onward (with an optional endDate filter)
+      let mainQuery = `
+        SELECT indices, nav, date
+        FROM tblresearch_new
+        WHERE indices = ANY($1)
+          AND date >= $2::date
+      `;
+      const queryParams = [indicesList, parsedStartDate];
 
-        const startDateOnly = startDate ? startDate.split(' ')[0] : null;
-        const endDateOnly = endDate ? endDate.split(' ')[0] : null;
+      if (parsedEndDate) {
+        mainQuery += " AND date <= $3::date";
+        queryParams.push(parsedEndDate);
+      }
+      mainQuery += " ORDER BY indices, date ASC;";
 
-        // First, get the latest NAV before the start date
-        const lastAvailableNavQuery = `
-            SELECT indices, nav, date
-            FROM tblresearch_new
-            WHERE indices = ANY($1)
-            AND date < $2::date
-            ORDER BY date DESC
-            LIMIT 1;
-        `;
-        
-        const lastNavResult = await db.query(lastAvailableNavQuery, [indicesList, startDateOnly]);
-        
-        if (!lastNavResult.rows.length) {
-            return res.status(404).json({ message: 'No previous data available for interpolation.' });
-        }
+      const actualDataResult = await db.query(mainQuery, queryParams);
 
-        // Then get all the actual data points from start date onwards
-        const mainQuery = `
-            SELECT indices, nav, date
-            FROM tblresearch_new
-            WHERE indices = ANY($1)
-            AND date > $2::date
-            ${endDateOnly ? 'AND date <= $3::date' : ''}
-            ORDER BY indices, date ASC;
-        `;
+      // Combine the interpolation rows with the actual data.
+      dataRows = [...interpolatedRows, ...actualDataResult.rows];
+    } else {
+      // If no startDate is provided, fetch all available data for the given indices.
+      let mainQuery = `
+        SELECT indices, nav, date
+        FROM tblresearch_new
+        WHERE indices = ANY($1)
+      `;
+      const queryParams = [indicesList];
 
-        const mainQueryValues = endDateOnly 
-            ? [indicesList, startDateOnly, endDateOnly]
-            : [indicesList, startDateOnly];
+      if (parsedEndDate) {
+        mainQuery += " AND date <= $2::date";
+        queryParams.push(parsedEndDate);
+      }
+      mainQuery += " ORDER BY indices, date ASC;";
 
-        const actualDataResult = await db.query(mainQuery, mainQueryValues);
-
-        // Combine interpolated and actual data
-        const interpolatedStartPoint = {
-            indices: lastNavResult.rows[0].indices,
-            nav: lastNavResult.rows[0].nav,
-            date: new Date(startDateOnly + 'T18:30:00.000Z').toISOString()
-        };
-
-        const combinedData = [
-            interpolatedStartPoint,
-            ...actualDataResult.rows
-        ];
-
-        res.status(200).json({ data: combinedData });
-
-    } catch (error) {
-        console.error('Error fetching indices:', error);
-        res.status(500).json({ message: 'Error fetching indices data', error: error.message });
+      const result = await db.query(mainQuery, queryParams);
+      dataRows = result.rows;
     }
+
+    // Reformat the date for each row to remove the timestamp.
+    dataRows = dataRows.map((row) => ({
+      ...row,
+      date: new Date(row.date).toISOString().split("T")[0],
+    }));
+
+    res.status(200).json({ data: dataRows });
+  } catch (error) {
+    console.error("Error fetching indices:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching indices data", error: error.message });
+  }
 }
 
-function isValidDate(dateString) {
-    const dateOnly = dateString.split(' ')[0];
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    return regex.test(dateOnly) && !isNaN(Date.parse(dateOnly));
+// Helper function to parse any date format into YYYY-MM-DD format.
+// Returns null if the date cannot be parsed.
+function parseToISODate(dateString) {
+  const parsed = new Date(dateString);
+  if (isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toISOString().split("T")[0];
 }
