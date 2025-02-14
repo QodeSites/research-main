@@ -459,7 +459,6 @@ const PortfolioCalculatorForm = ({
               startDate={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
               endDate={isFirstPortfolio ? portfolioData.end_date : masterEndDate}
               minDate={isFirstPortfolio ? portfolioData.start_date : masterStartDate}
-              maxDate={new Date('2025-01-30')}
               dateFormat="dd-MM-yyyy"
               className="form-control"
               placeholderText="End Date"
