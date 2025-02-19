@@ -1,4 +1,5 @@
 import db from "lib/db";
+import dayjs from "dayjs";
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -18,6 +19,8 @@ export default async function handler(req, res) {
   }
 
   const { indices, startDate, endDate } = req.query;
+  console.log("startDate", startDate);
+  console.log("endDate", endDate);
 
   try {
     if (!indices) {
@@ -60,6 +63,7 @@ export default async function handler(req, res) {
           AND date < $2::date
         ORDER BY indices, date DESC;
       `;
+      console.log(lastAvailableNavQuery);
       const lastNavResult = await db.query(lastAvailableNavQuery, [
         indicesList,
         parsedStartDate,
@@ -81,8 +85,9 @@ export default async function handler(req, res) {
       `;
       const queryParams = [indicesList, parsedStartDate];
 
+      // Use the next day for the end condition so that the entire endDate is included.
       if (parsedEndDate) {
-        mainQuery += " AND date <= $3::date";
+        mainQuery += " AND date < ($3::date + INTERVAL '1 day')";
         queryParams.push(parsedEndDate);
       }
       mainQuery += " ORDER BY indices, date ASC;";
@@ -101,7 +106,7 @@ export default async function handler(req, res) {
       const queryParams = [indicesList];
 
       if (parsedEndDate) {
-        mainQuery += " AND date <= $2::date";
+        mainQuery += " AND date < ($2::date + INTERVAL '1 day')";
         queryParams.push(parsedEndDate);
       }
       mainQuery += " ORDER BY indices, date ASC;";
@@ -110,10 +115,10 @@ export default async function handler(req, res) {
       dataRows = result.rows;
     }
 
-    // Reformat the date for each row to remove the timestamp.
+    // Format each row's date as YYYY-MM-DD without additional timezone conversion.
     dataRows = dataRows.map((row) => ({
       ...row,
-      date: new Date(row.date).toISOString().split("T")[0],
+      date: dayjs(row.date).format("YYYY-MM-DD"),
     }));
 
     res.status(200).json({ data: dataRows });
