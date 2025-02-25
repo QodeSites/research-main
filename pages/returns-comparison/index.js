@@ -9,7 +9,8 @@ import {
     Row, 
     Col, 
     InputGroup, 
-    FormControl 
+    FormControl,
+    Badge
 } from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
 import { parse } from 'cookie';
@@ -22,10 +23,15 @@ const ReturnsComparisonPage = () => {
     const [error, setError] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
 
     // Filtering and Searching
     const [selectedGroup, setSelectedGroup] = useState('All');
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Responsive display
+    const [viewMode, setViewMode] = useState('full');
+    const [selectedColumns, setSelectedColumns] = useState(['1Y', '3Y', 'CDR']);
 
     // Single sorting configuration
     const [sortConfig, setSortConfig] = useState({
@@ -75,6 +81,29 @@ const ReturnsComparisonPage = () => {
         'Strategy Indices': strategyIndices,
         'Sectoral Indices': sectoralIndices
     };
+
+    // All available return periods
+    const allReturnPeriods = ['1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'];
+
+    // Detect screen size on mount and window resize
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setViewMode('compact');
+            } else {
+                setViewMode('full');
+            }
+        };
+        
+        // Set initial value
+        handleResize();
+        
+        // Add event listener
+        window.addEventListener('resize', handleResize);
+        
+        // Cleanup
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const segregateIndices = (data = {}) => {
         const createDefaultReturns = () => ({
@@ -180,6 +209,16 @@ const ReturnsComparisonPage = () => {
         });
     };
 
+    const handleColumnSelection = (column) => {
+        setSelectedColumns(prev => {
+            if (prev.includes(column)) {
+                return prev.filter(col => col !== column);
+            } else {
+                return [...prev, column];
+            }
+        });
+    };
+
     const getSortedIndices = (indices) => {
         const { key, direction } = sortConfig;
         if (!key) return indices;
@@ -218,63 +257,91 @@ const ReturnsComparisonPage = () => {
         return direction === 'asc' ? ' ▲' : ' ▼';
     };
 
-    const renderIndicesTable = (indices) => {
+    const renderCardView = (indices) => {
         const sortedIndices = getSortedIndices(indices);
+        
+        return (
+            <div className="card-grid">
+                {sortedIndices.map((item, idx) => (
+                    <div key={item.index} className="card mb-3">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0">{item.index}</h5>
+                            <Badge bg="info">{item.category}</Badge>
+                        </div>
+                        <div className="card-body">
+                            <div className="row g-2">
+                                {selectedColumns.map(period => (
+                                    <div key={period} className="col-4">
+                                        <div className="p-2 border rounded text-center">
+                                            <div className="small text-muted">{period}</div>
+                                            <div className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}>
+                                                {item[period]}{item[period] !== '-' ? '%' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderFullTable = (indices) => {
+        const sortedIndices = getSortedIndices(indices);
+        const displayColumns = viewMode === 'full' ? allReturnPeriods : selectedColumns;
 
         return (
-            <>
-                <h3 className="my-3 text-primary">All Indices</h3>
-                {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-                <div className="table-container">
-                    <Table striped bordered hover responsive className="elegant-table table-fixed">
-                        <thead className="sticky-header">
-                            <tr>
-                                <th>S.No</th>
+            <div className="table-responsive">
+                <Table striped bordered hover className="elegant-table">
+                    <thead className="sticky-header">
+                        <tr>
+                            <th>S.No</th>
+                            <th
+                                style={{ cursor: 'pointer', minWidth: '150px' }}
+                                onClick={() => handleSort('index')}
+                            >
+                                Index{renderSortIndicator('index')}
+                            </th>
+                            <th
+                                style={{ cursor: 'pointer', minWidth: '150px' }}
+                                onClick={() => handleSort('category')}
+                            >
+                                Category{renderSortIndicator('category')}
+                            </th>
+                            {/* Dynamic headers for returns */}
+                            {displayColumns.map((period) => (
                                 <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort('index')}
+                                    key={period}
+                                    style={{ cursor: 'pointer', minWidth: '80px' }}
+                                    onClick={() => handleSort(period)}
                                 >
-                                    Index{renderSortIndicator('index')}
+                                    {period} {renderSortIndicator(period)}
                                 </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort('category')}
-                                >
-                                    Category{renderSortIndicator('category')}
-                                </th>
-                                {/* Dynamic headers for returns */}
-                                {[ '1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'].map((period) => (
-                                    <th
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sortedIndices.map((item, idx) => (
+                            <tr key={item.index}>
+                                <td>{idx + 1}</td>
+                                <td>{item.index}</td>
+                                <td>{item.category}</td>
+                                {/* Render return values with conditional styling */}
+                                {displayColumns.map((period) => (
+                                    <td 
                                         key={period}
-                                        style={{ cursor: 'pointer' }}
-                                        onClick={() => handleSort(period)}
+                                        className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}
                                     >
-                                        {period} {renderSortIndicator(period)}
-                                    </th>
+                                        {item[period]}{item[period] !== '-' ? '%' : ''}
+                                    </td>
                                 ))}
                             </tr>
-                        </thead>
-                        <tbody>
-                            {sortedIndices.map((item, idx) => (
-                                <tr key={item.index}>
-                                    <td className="s-no-column">{idx + 1}</td>
-                                    <td className="index-column">{item.index}</td>
-                                    <td className="category-column">{item.category}</td>
-                                    {/* Render return values with conditional styling */}
-                                    {[ '1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'].map((period) => (
-                                        <td 
-                                            key={period}
-                                            className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}
-                                        >
-                                            {item[period]}{item[period] !== '-' && period !== 'Drawdown' && period !== 'MDD' ? '%' : ''}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </div>
-            </>
+                        ))}
+                    </tbody>
+                </Table>
+            </div>
         );
     };
 
@@ -310,84 +377,144 @@ const ReturnsComparisonPage = () => {
         <div className="p-4">
             <h1 className="mb-4">Returns Comparison</h1>
             
-            <Form onSubmit={handleDateSubmit} className="mb-4">
-                <Row>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Search Index</Form.Label>
-                            <InputGroup>
-                                <FormControl
-                                    type="text"
-                                    placeholder="Search by index name"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <Button
-                                    variant="outline-secondary"
-                                    onClick={() => setSearchTerm('')}
-                                    disabled={!searchTerm}
-                                >
-                                    Clear
-                                </Button>
-                            </InputGroup>
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Filter by Group</Form.Label>
-                            <Form.Control
-                                as="select"
-                                value={selectedGroup}
-                                onChange={(e) => setSelectedGroup(e.target.value)}
-                            >
-                                <option value="All">All Groups</option>
-                                {Object.keys(allIndicesGroups).map(group => (
-                                    <option key={group} value={group}>{group}</option>
-                                ))}
-                            </Form.Control>
-                        </Form.Group>
-                    </Col>
-
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Start Date</Form.Label>
-                            <Form.Control
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>End Date</Form.Label>
-                            <Form.Control
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Col>
-
-                </Row>
-                <Row className="mt-3">
-                    <Col md={3}>
-                        <Button
-                            variant="primary"
-                            type="submit"
-                            disabled={(!startDate || !endDate)}
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </Button>
+                
+                <div className="d-flex align-items-center">
+                    <div className="btn-group me-2">
+                        <Button 
+                            variant={viewMode === 'full' ? 'primary' : 'outline-primary'} 
+                            onClick={() => setViewMode('full')}
+                            className="d-none d-md-inline"
                         >
-                            Calculate Custom Returns
+                            Full View
                         </Button>
-                    </Col>
-                </Row>
-            </Form>
+                        <Button 
+                            variant={viewMode === 'compact' ? 'primary' : 'outline-primary'} 
+                            onClick={() => setViewMode('compact')}
+                        >
+                            {window.innerWidth < 768 ? 'Table View' : 'Compact View'}
+                        </Button>
+                        <Button 
+                            variant={viewMode === 'card' ? 'primary' : 'outline-primary'} 
+                            onClick={() => setViewMode('card')}
+                            className="d-md-none"
+                        >
+                            Card View
+                        </Button>
+                    </div>
+                </div>
+            </div>
+            
+            {showFilters && (
+                <Form onSubmit={handleDateSubmit} className="mb-4">
+                    <Row className="mb-3">
+                        <Col xs={12} md={3} className="mb-2 mb-md-0">
+                            <Form.Group>
+                                <Form.Label>Search Index</Form.Label>
+                                <InputGroup>
+                                    <FormControl
+                                        type="text"
+                                        placeholder="Search by index name"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    <Button
+                                        variant="outline-secondary"
+                                        onClick={() => setSearchTerm('')}
+                                        disabled={!searchTerm}
+                                    >
+                                        Clear
+                                    </Button>
+                                </InputGroup>
+                            </Form.Group>
+                        </Col>
+                        <Col xs={12} md={3} className="mb-2 mb-md-0">
+                            <Form.Group>
+                                <Form.Label>Filter by Group</Form.Label>
+                                <Form.Control
+                                    as="select"
+                                    value={selectedGroup}
+                                    onChange={(e) => setSelectedGroup(e.target.value)}
+                                >
+                                    <option value="All">All Groups</option>
+                                    {Object.keys(allIndicesGroups).map(group => (
+                                        <option key={group} value={group}>{group}</option>
+                                    ))}
+                                </Form.Control>
+                            </Form.Group>
+                        </Col>
+                        <Col xs={6} md={3}>
+                            <Form.Group>
+                                <Form.Label>Start Date</Form.Label>
+                                <Form.Control
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </Form.Group>
+                        </Col>
+                        <Col xs={6} md={3}>
+                            <Form.Group>
+                                <Form.Label>End Date</Form.Label>
+                                <Form.Control
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+                    
+                    {viewMode !== 'full' && (
+                        <Row className="mb-3">
+                            <Col xs={12}>
+                                <Form.Label>Select Columns to Display</Form.Label>
+                                <div className="d-flex flex-wrap gap-2">
+                                    {allReturnPeriods.map(period => (
+                                        <Form.Check
+                                            key={period}
+                                            type="checkbox"
+                                            id={`column-${period}`}
+                                            label={period}
+                                            checked={selectedColumns.includes(period)}
+                                            onChange={() => handleColumnSelection(period)}
+                                            inline
+                                        />
+                                    ))}
+                                </div>
+                            </Col>
+                        </Row>
+                    )}
 
-            {renderIndicesTable(finalFilteredIndices)}
+                    <Row>
+                        <Col>
+                            <Button
+                                variant="primary"
+                                type="submit"
+                                disabled={(!startDate || !endDate)}
+                            >
+                                Calculate Custom Returns
+                            </Button>
+                        </Col>
+                    </Row>
+                </Form>
+            )}
+
+            <div className="mt-3">
+                <h3 className="my-3 text-primary">All Indices</h3>
+                {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
+                
+                {viewMode === 'card' ? 
+                    renderCardView(finalFilteredIndices) : 
+                    renderFullTable(finalFilteredIndices)
+                }
+            </div>
         </div>
     );
 };
-
 
 // Server-side protection: Check for the "auth" cookie and redirect if missing
 export async function getServerSideProps(context) {

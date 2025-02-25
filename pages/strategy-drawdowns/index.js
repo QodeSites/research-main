@@ -9,12 +9,10 @@ import {
     Row, 
     Col, 
     InputGroup, 
-    FormControl 
+    FormControl, 
+    Badge 
 } from 'react-bootstrap';
 import {
-    GraphUpArrow,
-    GraphDownArrow,
-    DashCircleFill,
     CaretUpFill,
     CaretDownFill
 } from 'react-bootstrap-icons';
@@ -25,32 +23,46 @@ import formatDate from 'utils/formatDate';
 import { parse } from 'cookie';
 
 const IndexTable = () => {
+    // Data and loading states
     const [data, setData] = useState([]);
     const [date, setDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [lastFetchTime, setLastFetchTime] = useState(null);
 
     // Filtering and Searching
     const [selectedGroup, setSelectedGroup] = useState('All');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Single sorting configuration
+    // Toggle for filters and view mode
+    const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
+
+    // For card view column selection – available keys and labels
+    const allCardColumns = [
+        { key: 'nav', label: 'Current NAV' },
+        { key: 'currentDD', label: 'Current DD' },
+        { key: 'peak', label: 'Peak' },
+        { key: 'dd10', label: '10% DD' },
+        { key: 'dd15', label: '15% DD' },
+        { key: 'dd20', label: '20% DD' }
+    ];
+    const [selectedColumns, setSelectedColumns] = useState(allCardColumns.map(col => col.key));
+
+    // Sorting configuration
     const [sortConfig, setSortConfig] = useState({
         key: null,
         direction: 'ascending'
     });
 
-    // New state for last fetch time
-    const [lastFetchTime, setLastFetchTime] = useState(null);
-
-    // Define the indices for each category in the desired order
+    // Define the indices groups and order
     const qodeStrategyIndices = ['QAW', 'QTF', 'QGF', 'QFH'];
     const broadBasedIndices = [
         'NIFTY 50',
         'NIFTY 500',
         'NIFTY NEXT 50',
         'NIFTY MIDCAP 100',
-        'NIFTY SMLCAP 250',
+        'NIFTY SMLCAP 250'
     ];
     const strategyIndices = [
         'NIFTYM150MOMNTM50',
@@ -58,7 +70,6 @@ const IndexTable = () => {
         'NIFTY200MOMENTM30',
         'GOLDBEES'
     ];
-
     const sectoralIndices = [
         'NIFTY BANK',
         'NIFTY AUTO',
@@ -81,7 +92,6 @@ const IndexTable = () => {
         'NIFTY INFRA',
         'NIFTY PSE'
     ];
-
     const allIndicesGroups = {
         'Qode Strategies': qodeStrategyIndices,
         'Broad Based Indices': broadBasedIndices,
@@ -91,11 +101,9 @@ const IndexTable = () => {
 
     // Function to segregate and order indices into categories
     const segregateIndices = (rawData) => {
+        // Create a map of rawData using indices as key
         const dataMap = new Map(rawData.map(item => [item.indices, item]));
-
         const combined = [];
-
-        // Initialize combined array with all indices and their categories
         for (const [category, indices] of Object.entries(allIndicesGroups)) {
             indices.forEach(index => {
                 const item = dataMap.get(index);
@@ -105,7 +113,6 @@ const IndexTable = () => {
                         category
                     });
                 } else {
-                    // If data for the index is missing, initialize with default values
                     combined.push({
                         indices: index,
                         direction: 'NONE',
@@ -123,34 +130,28 @@ const IndexTable = () => {
                 }
             });
         }
-
         return combined;
     };
 
     const fetchIndices = async () => {
         setIsLoading(true);
         setError(null);
-
         try {
-            // Fetch the most recent data (which is today's data)
             const response = await fetch(`${window.location.origin}/api/fetchIndex`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
             const result = await response.json();
-
             if (Array.isArray(result.data)) {
                 const latestDate = result.data.length > 0
                     ? formatDate(result.data[0].date || result.date || new Date())
                     : formatDate(new Date());
-
                 setDate(latestDate);
-
-                // Filter and sanitize the data
+                // Map and sanitize data
                 const filteredData = result.data.map(item => ({
                     ...item,
-                    indices: item.indices || 'N/A', // Ensure indices is a string
-                    currentDD: typeof item.currentDD === 'number' ? `${item.currentDD}%` : 'N/A', // Ensure currentDD is a valid percentage string
+                    indices: item.indices || 'N/A',
+                    currentDD: typeof item.currentDD === 'number' ? `${item.currentDD}%` : 'N/A',
                     nav: typeof item.nav === 'number' ? item.nav : 'N/A',
                     peak: typeof item.peak === 'number' ? item.peak : 'N/A',
                     dd10: Boolean(item.dd10),
@@ -159,47 +160,40 @@ const IndexTable = () => {
                     dd10_value: typeof item.dd10_value === 'number' ? formatCurrency(item.dd10_value) : 'N/A',
                     dd15_value: typeof item.dd15_value === 'number' ? formatCurrency(item.dd15_value) : 'N/A',
                     dd20_value: typeof item.dd20_value === 'number' ? formatCurrency(item.dd20_value) : 'N/A',
-                    direction: item.direction || 'NONE', // Ensure direction has a default value
+                    direction: item.direction || 'NONE',
                 }));
-
-                console.log('Filtered and Mapped Data:', filteredData); // Debugging
-
                 setData(filteredData);
-                setLastFetchTime(new Date()); // Update last fetch time
+                setLastFetchTime(new Date());
             } else {
-                console.error('Invalid data structure or no data returned');
                 setError('Invalid data structure or no data returned');
             }
         } catch (error) {
-            console.error('Error fetching indices:', error);
             setError(error.message);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Sorting function for the unified table
+    useEffect(() => {
+        fetchIndices();
+    }, []);
+
+    // Sorting helper function
     const getSortedData = (items) => {
         const { key, direction } = sortConfig;
         if (!key) return items;
-
         const sortedItems = [...items].sort((a, b) => {
             let aValue = a[key];
             let bValue = b[key];
-
-            // Handle different data types
+            // Convert strings to lowercase for comparison
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 aValue = aValue.toLowerCase();
                 bValue = bValue.toLowerCase();
-            } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-                aValue = aValue ? 1 : 0;
-                bValue = bValue ? 1 : 0;
             } else if (key.includes('dd') && typeof aValue === 'string' && typeof bValue === 'string') {
-                // Convert percentage strings to numbers for comparison
+                // For percentage strings
                 aValue = aValue.endsWith('%') ? parseFloat(aValue) : 0;
                 bValue = bValue.endsWith('%') ? parseFloat(bValue) : 0;
             }
-
             if (aValue < bValue) {
                 return direction === 'ascending' ? -1 : 1;
             }
@@ -208,233 +202,192 @@ const IndexTable = () => {
             }
             return 0;
         });
-
         return sortedItems;
     };
 
-    // Segregate and sort data using useMemo for performance optimization
+    // useMemo to combine, filter, and sort the data for performance
     const sortedData = useMemo(() => {
         const combined = segregateIndices(data);
-
-        // Apply Group Filter
-        const filteredByGroup = selectedGroup === 'All' 
-            ? combined 
+        const filteredByGroup = selectedGroup === 'All'
+            ? combined
             : combined.filter(item => item.category === selectedGroup);
-
-        // Apply Search Filter
-        const finalFilteredIndices = filteredByGroup.filter(item => 
+        const finalFiltered = filteredByGroup.filter(item =>
             item.indices.toLowerCase().includes(searchTerm.toLowerCase())
         );
-
-        return getSortedData(finalFilteredIndices);
+        return getSortedData(finalFiltered);
     }, [data, sortConfig, selectedGroup, searchTerm]);
 
-    // Sorting request handler for the unified table
+    // Sorting request handler
     const requestSort = (key) => {
-        setSortConfig(prevConfig => {
+        setSortConfig(prev => {
             let direction = 'ascending';
-            if (prevConfig.key === key && prevConfig.direction === 'ascending') {
+            if (prev.key === key && prev.direction === 'ascending') {
                 direction = 'descending';
             }
-            return {
-                key,
-                direction
-            };
+            return { key, direction };
         });
     };
 
-    // Sorting icon renderer for the unified table
+    // Render sort icon
     const renderSortIcon = (key) => {
-        const { key: sortedKey, direction } = sortConfig;
-        if (sortedKey !== key) return null;
-        return direction === 'ascending'
+        if (sortConfig.key !== key) return null;
+        return sortConfig.direction === 'ascending'
             ? <CaretUpFill className="ml-1 sort-icon" />
             : <CaretDownFill className="ml-1 sort-icon" />;
     };
 
-    useEffect(() => {
-        fetchIndices();
-    }, []);
+    // Toggle column selection for card view
+    const handleColumnSelection = (column) => {
+        setSelectedColumns(prev => {
+            if (prev.includes(column)) {
+                return prev.filter(col => col !== column);
+            } else {
+                return [...prev, column];
+            }
+        });
+    };
 
-    // Function to render table headers for the unified table
-    const renderTableHeader = () => (
-        <tr>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('serialNo')}
-            >
-                S.No {renderSortIcon('serialNo')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('indices')}
-            >
-                Indices {renderSortIcon('indices')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('category')}
-            >
-                Category {renderSortIcon('category')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('nav')}
-            >
-                Current NAV {renderSortIcon('nav')}
-                {date && <div style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({date})</div>}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('currentDD')}
-            >
-                Current DD {renderSortIcon('currentDD')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('peak')}
-            >
-                Peak {renderSortIcon('peak')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('dd10')}
-            >
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon('dd10')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('dd15')}
-            >
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon('dd15')}
-            </th>
-            <th
-                style={{ cursor: 'pointer' }}
-                onClick={() => requestSort('dd20')}
-            >
-                <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon('dd20')}
-            </th>
-        </tr>
+    // Render table view
+    const renderTableView = () => (
+        <div className="table-responsive">
+            <Table bordered striped responsive className="elegant-table table-fixed">
+                <colgroup>
+                    <col style={{ width: '60px' }} />
+                    <col style={{ width: '200px' }} />
+                    <col style={{ width: '150px' }} />
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col style={{ width: '100px' }} />
+                </colgroup>
+                <thead className="sticky-header">
+                    <tr>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('serialNo')}>
+                            S.No {renderSortIcon('serialNo')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('indices')}>
+                            Indices {renderSortIcon('indices')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('category')}>
+                            Category {renderSortIcon('category')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nav')}>
+                            Current NAV {renderSortIcon('nav')}
+                            {date && <div style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({date})</div>}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('currentDD')}>
+                            Current DD {renderSortIcon('currentDD')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('peak')}>
+                            Peak {renderSortIcon('peak')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd10')}>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>10% </span>DD {renderSortIcon('dd10')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd15')}>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>15% </span>DD {renderSortIcon('dd15')}
+                        </th>
+                        <th style={{ cursor: 'pointer' }} onClick={() => requestSort('dd20')}>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 900, color: '#dc3546' }}>20% </span>DD {renderSortIcon('dd20')}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {sortedData.map((item, index) => (
+                        <tr key={item.indices}>
+                            <td>{index + 1}</td>
+                            <td>{item.indices}</td>
+                            <td>{item.category}</td>
+                            <td>{item.nav !== 'N/A' ? formatCurrency(item.nav) : 'N/A'}</td>
+                            <td>{item.currentDD}</td>
+                            <td>{item.peak !== 'N/A' ? formatCurrency(item.peak) : 'N/A'}</td>
+                            <td className={item.dd10 ? 'bg-true' : ''}>
+                                {item.dd10 
+                                    ? <OverlayTrigger placement="top" overlay={<Tooltip>Value: {item.dd10_value}</Tooltip>}>
+                                        <span style={{ fontStyle: 'italic' }}>Done</span>
+                                      </OverlayTrigger>
+                                    : <span style={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 1)' }}>{item.dd10_value}</span>
+                                }
+                            </td>
+                            <td className={item.dd15 ? 'bg-true' : ''}>
+                                {item.dd15 
+                                    ? <OverlayTrigger placement="top" overlay={<Tooltip>Value: {item.dd15_value}</Tooltip>}>
+                                        <span style={{ fontStyle: 'italic' }}>Done</span>
+                                      </OverlayTrigger>
+                                    : <span style={{ fontWeight: item.dd10 ? 'bold' : 'normal', color: item.dd10 ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 1)' }}>{item.dd15_value}</span>
+                                }
+                            </td>
+                            <td className={item.dd20 ? 'bg-true' : ''}>
+                                {item.dd20 
+                                    ? <OverlayTrigger placement="top" overlay={<Tooltip>Value: {item.dd20_value}</Tooltip>}>
+                                        <span style={{ fontStyle: 'italic' }}>Done</span>
+                                      </OverlayTrigger>
+                                    : <span style={{ fontWeight: item.dd15 ? 'bold' : 'normal', color: item.dd15 ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 1)' }}>{item.dd20_value}</span>
+                                }
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </Table>
+        </div>
     );
 
-    // Function to render table rows for the unified table
-    const renderTableRows = () => (
-        sortedData.map((item, index) => (
-            <tr key={item.indices}>
-                <td className="s-no-column">{index + 1}</td> {/* Serial Number */}
-                <td>
-                    {item.indices} &nbsp;
-                </td>
-                <td>{item.category}</td>
-                <td>{item.nav !== 'N/A' ? formatCurrency(item.nav) : 'N/A'}</td>
-                <td className="drawdown">
-                    {item.currentDD}
-                </td>
-                <td>{item.peak !== 'N/A' ? formatCurrency(item.peak) : 'N/A'}</td>
-                <td className={item.dd10 ? 'bg-true' : ''}>
-                    {item.dd10 ? (
-                        <OverlayTrigger
-                            placement="top"
-                            overlay={
-                                <Tooltip>
-                                    Value: {item.dd10_value}
-                                </Tooltip>
-                            }
-                        >
-                            <span
-                                className="true-value"
-                                style={{ fontStyle: 'italic' }}
-                            >
-                                Done
-                            </span>
-                        </OverlayTrigger>
-                    ) : (
-                        <span
-                            style={{
-                                fontWeight: 'bold',
-                                color: 'rgba(0, 0, 0, 1)',
-                            }}
-                        >
-                            {item.dd10_value}
-                        </span>
-                    )}
-                </td>
-                <td className={item.dd15 ? 'bg-true' : ''}>
-                    {item.dd15 ? (
-                        <OverlayTrigger
-                            placement="top"
-                            overlay={
-                                <Tooltip>
-                                    Value: {item.dd15_value}
-                                </Tooltip>
-                            }
-                        >
-                            <span
-                                className="true-value"
-                                style={{ fontStyle: 'italic' }}
-                            >
-                                Done
-                            </span>
-                        </OverlayTrigger>
-                    ) : (
-                        <span
-                            style={{
-                                fontWeight: item.dd10 ? 'bold' : 'normal',
-                                color: item.dd10
-                                    ? 'rgba(0, 0, 0, 0.8)'
-                                    : 'rgba(0, 0, 0, 1)',
-                            }}
-                        >
-                            {item.dd15_value}
-                        </span>
-                    )}
-                </td>
-                <td className={item.dd20 ? 'bg-true' : ''}>
-                    {item.dd20 ? (
-                        <OverlayTrigger
-                            placement="top"
-                            overlay={
-                                <Tooltip>
-                                    Value: {item.dd20_value}
-                                </Tooltip>
-                            }
-                        >
-                            <span
-                                className="true-value"
-                                style={{ fontStyle: 'italic' }}
-                            >
-                                Done
-                            </span>
-                        </OverlayTrigger>
-                    ) : (
-                        <span
-                            style={{
-                                fontWeight: item.dd15 ? 'bold' : 'normal',
-                                color: item.dd15
-                                    ? 'rgba(0, 0, 0, 0.8)'
-                                    : 'rgba(0, 0, 0, 1)',
-                            }}
-                        >
-                            {item.dd20_value}
-                        </span>
-                    )}
-                </td>
-            </tr>
-        ))
+    // Render card view
+    const renderCardView = () => (
+        <div className="card-grid">
+            {sortedData.map((item, index) => (
+                <div key={item.indices} className="card mb-3">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">{item.indices}</h5>
+                        <Badge bg="info">{item.category}</Badge>
+                    </div>
+                    <div className="card-body">
+                        <Row className="g-2">
+                            {selectedColumns.map(colKey => {
+                                const colDef = allCardColumns.find(col => col.key === colKey);
+                                let value;
+                                if (colKey === 'nav') {
+                                    value = item.nav !== 'N/A' ? formatCurrency(item.nav) : 'N/A';
+                                } else if (colKey === 'currentDD') {
+                                    value = item.currentDD;
+                                } else if (colKey === 'peak') {
+                                    value = item.peak !== 'N/A' ? formatCurrency(item.peak) : 'N/A';
+                                } else if (colKey === 'dd10') {
+                                    value = item.dd10 ? 'Done' : item.dd10_value;
+                                } else if (colKey === 'dd15') {
+                                    value = item.dd15 ? 'Done' : item.dd15_value;
+                                } else if (colKey === 'dd20') {
+                                    value = item.dd20 ? 'Done' : item.dd20_value;
+                                }
+                                return (
+                                    <Col key={colKey} xs={6} md={4}>
+                                        <div className="p-2 border rounded text-center">
+                                            <div className="small text-muted">{colDef.label}</div>
+                                            <div className={ (colKey.startsWith('dd') && value !== 'Done' && parseFloat(value) < 0) ? 'text-danger' : '' }>
+                                                {value}
+                                            </div>
+                                        </div>
+                                    </Col>
+                                );
+                            })}
+                        </Row>
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 
-    // Function to export the unified table to Excel
+    // Function to export table view to Excel
     const exportToExcel = () => {
-        // Create a new workbook
         const workbook = XLSX.utils.book_new();
-
-        // Function to transform data for Excel
         const transformData = (items) => {
             return items.map((item, index) => ({
                 'S.No': index + 1,
                 Indices: item.indices,
                 Category: item.category,
-                'Direction': item.direction,
+                Direction: item.direction,
                 'Current NAV': item.nav !== 'N/A' ? formatCurrency(item.nav) : 'N/A',
                 'Current DD (%)': item.currentDD,
                 Peak: item.peak !== 'N/A' ? formatCurrency(item.peak) : 'N/A',
@@ -443,23 +396,11 @@ const IndexTable = () => {
                 '20% DD': item.dd20 ? 'Done' : item.dd20_value,
             }));
         };
-
-        // Transform data
         const transformedData = transformData(sortedData);
-
-        // Create worksheet
         const worksheet = XLSX.utils.json_to_sheet(transformedData);
-
-        // Append worksheet to workbook
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Indices Drawdowns');
-
-        // Generate buffer
         const workbookOut = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-        // Create a Blob from the buffer
         const blob = new Blob([workbookOut], { type: 'application/octet-stream' });
-
-        // Trigger the download
         saveAs(blob, 'IndicesDrawdowns.xlsx');
     };
 
@@ -476,94 +417,105 @@ const IndexTable = () => {
     return (
         <div className="p-4">
             <h2 className="text-left my-4 elegant-title">Indices Drawdowns</h2>
-
             {error && <div className="alert alert-danger">{error}</div>}
-
-            {!isLoading && (
-                <>
-                    {/* Controls: Search, Group Filter, Export */}
-                    <Row className="mb-3 align-items-center">
-                        <Col md={6}>
-                            <Row>
-                                <Col md={6}>
-                                    <Form.Group controlId="searchIndex">
-                                        <Form.Label>Search Indices</Form.Label>
-                                        <InputGroup>
-                                            <FormControl
-                                                type="text"
-                                                placeholder="Search by index name"
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                            />
-                                            <Button 
-                                                variant="outline-secondary" 
-                                                onClick={() => setSearchTerm('')}
-                                                disabled={!searchTerm}
-                                            >
-                                                Clear
-                                            </Button>
-                                        </InputGroup>
-                                    </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                    <Form.Group controlId="groupFilter">
-                                        <Form.Label>Filter by Group</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            value={selectedGroup}
-                                            onChange={(e) => setSelectedGroup(e.target.value)}
-                                        >
-                                            <option value="All">All Groups</option>
-                                            {Object.keys(allIndicesGroups).map(group => (
-                                                <option key={group} value={group}>{group}</option>
-                                            ))}
-                                        </Form.Control>
-                                    </Form.Group>
-                                </Col>
-                            </Row>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </Button>
+                <div className="btn-group">
+                    <Button 
+                        variant={viewMode === 'table' ? 'primary' : 'outline-primary'} 
+                        onClick={() => setViewMode('table')}
+                    >
+                        Table View
+                    </Button>
+                    <Button 
+                        variant={viewMode === 'card' ? 'primary' : 'outline-primary'} 
+                        onClick={() => setViewMode('card')}
+                    >
+                        Card View
+                    </Button>
+                </div>
+            </div>
+            {showFilters && (
+                <Form className="mb-4">
+                    <Row className="mb-3">
+                        <Col xs={12} md={6} className="mb-2 mb-md-0">
+                            <Form.Group controlId="searchIndex">
+                                <Form.Label>Search Indices</Form.Label>
+                                <InputGroup>
+                                    <FormControl
+                                        type="text"
+                                        placeholder="Search by index name"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    <Button 
+                                        variant="outline-secondary" 
+                                        onClick={() => setSearchTerm('')}
+                                        disabled={!searchTerm}
+                                    >
+                                        Clear
+                                    </Button>
+                                </InputGroup>
+                            </Form.Group>
                         </Col>
-                        <Col md={6} className="d-flex justify-content-end">
-                            <Button variant="success" onClick={exportToExcel}>
-                                Export to Excel
-                            </Button>
+                        <Col xs={12} md={6}>
+                            <Form.Group controlId="groupFilter">
+                                <Form.Label>Filter by Group</Form.Label>
+                                <Form.Control
+                                    as="select"
+                                    value={selectedGroup}
+                                    onChange={(e) => setSelectedGroup(e.target.value)}
+                                >
+                                    <option value="All">All Groups</option>
+                                    {Object.keys(allIndicesGroups).map(group => (
+                                        <option key={group} value={group}>{group}</option>
+                                    ))}
+                                </Form.Control>
+                            </Form.Group>
                         </Col>
                     </Row>
-
-                    {/* Unified Table */}
-                    <div className="table-container">
-                        <Table bordered striped responsive className="elegant-table table-fixed">
-                            <colgroup>
-                                <col style={{ width: '60px' }} /> {/* S.No column */}
-                                <col style={{ width: '200px' }} /> {/* Indices column */}
-                                <col style={{ width: '150px' }} /> {/* Category column */}
-                                <col style={{ width: '120px' }} /> {/* Current NAV */}
-                                <col style={{ width: '100px' }} /> {/* Current DD */}
-                                <col style={{ width: '120px' }} /> {/* Peak */}
-                                <col style={{ width: '100px' }} /> {/* 10% DD */}
-                                <col style={{ width: '100px' }} /> {/* 15% DD */}
-                                <col style={{ width: '100px' }} /> {/* 20% DD */}
-                            </colgroup>
-                            <thead className="table-header sticky-header">
-                                {renderTableHeader()}
-                            </thead>
-                            <tbody>
-                                {renderTableRows()}
-                            </tbody>
-                        </Table>
-                    </div>
-                </>
+                    {viewMode === 'card' && (
+                        <Row className="mb-3">
+                            <Col xs={12}>
+                                <Form.Label>Select Columns to Display</Form.Label>
+                                <div className="d-flex flex-wrap gap-2">
+                                    {allCardColumns.map(col => (
+                                        <Form.Check
+                                            key={col.key}
+                                            type="checkbox"
+                                            id={`column-${col.key}`}
+                                            label={col.label}
+                                            checked={selectedColumns.includes(col.key)}
+                                            onChange={() => handleColumnSelection(col.key)}
+                                            inline
+                                        />
+                                    ))}
+                                </div>
+                            </Col>
+                        </Row>
+                    )}
+                    {/* If needed, additional filters (like date) can be added here */}
+                </Form>
             )}
+            <div className="mb-3 d-flex justify-content-end">
+                {viewMode === 'table' && (
+                    <Button variant="success" onClick={exportToExcel}>
+                        Export to Excel
+                    </Button>
+                )}
+            </div>
+            {viewMode === 'card' ? renderCardView() : renderTableView()}
         </div>
     );
 };
-
 
 // Server-side protection: Check for the "auth" cookie and redirect if missing
 export async function getServerSideProps(context) {
     const { req } = context;
     const cookies = req.headers.cookie || '';
     const parsedCookies = parse(cookies);
-
     if (!parsedCookies.auth) {
         return {
             redirect: {
@@ -572,9 +524,7 @@ export async function getServerSideProps(context) {
             },
         };
     }
-
-    // If the auth cookie exists, render the page
     return { props: {} };
 }
-export default IndexTable;
 
+export default IndexTable;

@@ -9,24 +9,30 @@ import {
     Row, 
     Col, 
     InputGroup, 
-    FormControl 
+    FormControl,
+    Badge
 } from 'react-bootstrap';
 import formatDate from 'utils/formatDate';
-import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa'; // For sort icons
 import { parse } from 'cookie';
 
-
 const IndicesPage = () => {
+    // Data and error states
     const [indicesData, setIndicesData] = useState(null);
     const [dataAsOf, setDataAsOf] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
 
-    // Filtering and Searching
+    // Filtering and searching
     const [selectedGroup, setSelectedGroup] = useState('All');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // View mode and column selection (for card view)
+    const [viewMode, setViewMode] = useState('table'); // "table" or "card"
+    const allReturnPeriods = ['1D', '2D', '3D', '1W', '1M', '3M', '6M', '9M', '1Y', 'DD'];
+    const [selectedColumns, setSelectedColumns] = useState(['1D', '1M', '1Y']);
 
     // Single sorting configuration
     const [sortConfig, setSortConfig] = useState({
@@ -69,7 +75,6 @@ const IndicesPage = () => {
         'NIFTY PVT BANK',
         'NIFTY REALTY'
     ];
-
     const allIndicesGroups = {
         'Qode Strategies': qodeStrategyIndices,
         'Broad Based Indices': broadBasedIndices,
@@ -77,6 +82,7 @@ const IndicesPage = () => {
         'Sectoral Indices': sectoralIndices
     };
 
+    // Prepare indices with default returns values
     const segregateIndices = (data = {}) => {
         const createDefaultReturns = () => ({
             '1D': '-',
@@ -92,8 +98,6 @@ const IndicesPage = () => {
         });
 
         const combined = [];
-
-        // Initialize combined array with all indices and their categories
         for (const [category, indices] of Object.entries(allIndicesGroups)) {
             indices.forEach(index => {
                 combined.push({
@@ -104,7 +108,6 @@ const IndicesPage = () => {
             });
         }
 
-        // Populate with actual data
         if (data) {
             Object.entries(data).forEach(([index, returns]) => {
                 const indexObj = combined.find(item => item.index === index);
@@ -126,6 +129,7 @@ const IndicesPage = () => {
         return combined;
     };
 
+    // Fetch data from the API
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -134,16 +138,12 @@ const IndicesPage = () => {
                 payload.startDate = startDate;
                 payload.endDate = endDate;
             }
-
             const response = await fetch('/api/indices', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
-
             if (response.ok) {
                 setIndicesData(result.data);
                 setDataAsOf(result.dataAsOf || new Date().toISOString());
@@ -166,16 +166,14 @@ const IndicesPage = () => {
         fetchData();
     };
 
+    // Sorting handler
     const handleSort = (key) => {
-        setSortConfig(prevConfig => {
+        setSortConfig(prev => {
             let direction = 'asc';
-            if (prevConfig.key === key && prevConfig.direction === 'asc') {
+            if (prev.key === key && prev.direction === 'asc') {
                 direction = 'desc';
             }
-            return {
-                key,
-                direction
-            };
+            return { key, direction };
         });
     };
 
@@ -184,10 +182,8 @@ const IndicesPage = () => {
         if (!key) return indices;
 
         const sorted = [...indices];
-
         sorted.sort((a, b) => {
             let aValue, bValue;
-
             if (key === 'index' || key === 'category') {
                 aValue = a[key].toUpperCase();
                 bValue = b[key].toUpperCase();
@@ -197,208 +193,252 @@ const IndicesPage = () => {
             } else {
                 aValue = a[key] === '-' ? null : parseFloat(a[key]);
                 bValue = b[key] === '-' ? null : parseFloat(b[key]);
-
                 if (aValue === null && bValue === null) return 0;
                 if (aValue === null) return 1;
                 if (bValue === null) return -1;
-
                 if (aValue < bValue) return direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return direction === 'asc' ? 1 : -1;
                 return 0;
             }
         });
-
         return sorted;
     };
 
     const renderSortIndicator = (columnKey) => {
         const { key, direction } = sortConfig;
-        if (key !== columnKey) return <FaSort />;
-        return direction === 'asc' ? <FaSortUp /> : <FaSortDown />;
+        if (key !== columnKey) return null;
+        return direction === 'asc' ? ' ▲' : ' ▼';
     };
 
-    const getDisplayValue = (returns, period, isQodeStrategy) => {
-        // Define the periods beyond which data should be hidden for Qode Strategies
-        const periodsToHideForQode = ['3M', '6M', '9M', '1Y'];
-
-        if (isQodeStrategy && periodsToHideForQode.includes(period)) {
-            return '-';
-        }
-
-        return returns[period] !== '-' ? `${returns[period]}%` : '-';
+    // Toggle column selection for card view
+    const handleColumnSelection = (column) => {
+        setSelectedColumns(prev => {
+            if (prev.includes(column)) {
+                return prev.filter(col => col !== column);
+            } else {
+                return [...prev, column];
+            }
+        });
     };
 
-    if (loading) {
+    // Render table view with all columns
+    const renderTableView = (indices) => {
+        const sortedIndices = getSortedIndices(indices);
         return (
-            <Container className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <Spinner animation="border" variant="primary" />
-            </Container>
-        );
-    }
-
-    if (error) {
-        return (
-            <Container className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <Alert variant="danger">{error}</Alert>
-            </Container>
-        );
-    }
-
-    const combinedIndices = segregateIndices(indicesData);
-
-    // Apply Group Filter
-    const filteredByGroup = selectedGroup === 'All' 
-        ? combinedIndices 
-        : combinedIndices.filter(item => item.category === selectedGroup);
-
-    // Apply Search Filter
-    const finalFilteredIndices = filteredByGroup.filter(item => 
-        item.index.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    // Apply Sorting
-    const sortedIndices = getSortedIndices(finalFilteredIndices);
-
-    return (
-        <div className="p-4">
-            <h1 className="mb-4">Indices Returns</h1>
-            
-            {/* Search and Filter Form */}
-            <Form onSubmit={handleDateSubmit} className="mb-4">
-                <Row>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Search Index</Form.Label>
-                            <InputGroup>
-                                <FormControl
-                                    type="text"
-                                    placeholder="Search by index name"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <Button
-                                    variant="outline-secondary"
-                                    onClick={() => setSearchTerm('')}
-                                    disabled={!searchTerm}
-                                >
-                                    Clear
-                                </Button>
-                            </InputGroup>
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Filter by Group</Form.Label>
-                            <Form.Control
-                                as="select"
-                                value={selectedGroup}
-                                onChange={(e) => setSelectedGroup(e.target.value)}
-                            >
-                                <option value="All">All Groups</option>
-                                {Object.keys(allIndicesGroups).map(group => (
-                                    <option key={group} value={group}>{group}</option>
-                                ))}
-                            </Form.Control>
-                        </Form.Group>
-                    </Col>
-
-                    {/* <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>Start Date</Form.Label>
-                            <Form.Control
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                        <Form.Group>
-                            <Form.Label>End Date</Form.Label>
-                            <Form.Control
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Col> */}
-
-                </Row>
-                {/* <Row className="mt-3">
-                    <Col md={3}>
-                        <Button
-                            variant="primary"
-                            type="submit"
-                            disabled={(!startDate || !endDate)}
-                        >
-                            Calculate Custom Returns
-                        </Button>
-                    </Col>
-                </Row> */}
-            </Form>
-
-            {/* Indices Table */}
-            <h3 className="my-3 text-primary">All Indices</h3>
-            {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-            <div className="table-container">
-                <Table striped bordered hover responsive className="elegant-table table-fixed">
+            <div className="table-responsive">
+                <Table striped bordered hover className="elegant-table">
                     <thead className="sticky-header">
                         <tr>
-                            <th style={{ width: '60px' }}>S.No</th>
-                            <th
-                                style={{ cursor: 'pointer', width: '200px' }}
-                                onClick={() => handleSort('index')}
-                            >
+                            <th style={{ cursor: 'pointer', minWidth: '60px' }} onClick={() => handleSort('index')}>
+                                S.No {renderSortIndicator('index')}
+                            </th>
+                            <th style={{ cursor: 'pointer', minWidth: '150px' }} onClick={() => handleSort('index')}>
                                 Index {renderSortIndicator('index')}
                             </th>
-                            <th
-                                style={{ cursor: 'pointer', width: '200px' }}
-                                onClick={() => handleSort('category')}
-                            >
+                            <th style={{ cursor: 'pointer', minWidth: '150px' }} onClick={() => handleSort('category')}>
                                 Category {renderSortIndicator('category')}
                             </th>
-                            {/* Dynamic headers for returns */}
-                            {['1D', '2D', '3D', '1W', '1M', '3M', '6M', '9M', '1Y', 'DD'].map((period) => (
+                            {allReturnPeriods.map(period => (
                                 <th
                                     key={period}
-                                    style={{ cursor: 'pointer', width: '100px' }}
-                                    onClick={() => handleSort(period === 'DD' ? 'DD' : period)}
+                                    style={{ cursor: 'pointer', minWidth: '80px' }}
+                                    onClick={() => handleSort(period)}
                                 >
-                                    {period === 'DD' ? 'Drawdown' : period} {renderSortIndicator(period === 'DD' ? 'DD' : period)}
+                                    {period === 'DD' ? 'Drawdown' : period} {renderSortIndicator(period)}
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {sortedIndices.map((item, idx) => {
-                            const isQodeStrategy = qodeStrategyIndices.includes(item.index);
-                            return (
-                                <tr key={item.index}>
-                                    <td>{idx + 1}</td>
-                                    <td>{item.index}</td>
-                                    <td>{item.category}</td>
-                                    {['1D', '2D', '3D', '1W', '1M', '3M', '6M', '9M', '1Y', 'DD'].map(period => {
-                                        const value = getDisplayValue(item, period, isQodeStrategy);
-                                        const numericValue = parseFloat(item[period]);
-                                        const isNegative = value !== '-' && !isNaN(numericValue) && numericValue < 0;
-                                        const cellClass = isNegative ? 'text-danger' : '';
-                                        return (
-                                            <td key={period} className={cellClass}>
-                                                {value}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            );
-                        })}
+                        {sortedIndices.map((item, idx) => (
+                            <tr key={item.index}>
+                                <td>{idx + 1}</td>
+                                <td>{item.index}</td>
+                                <td>{item.category}</td>
+                                {allReturnPeriods.map(period => (
+                                    <td
+                                        key={period}
+                                        className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}
+                                    >
+                                        {item[period] !== '-' ? `${item[period]}%` : '-'}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
                     </tbody>
                 </Table>
+            </div>
+        );
+    };
+
+    // Render card view using the selected columns
+    const renderCardView = (indices) => {
+        const sortedIndices = getSortedIndices(indices);
+        return (
+            <div className="card-grid">
+                {sortedIndices.map((item) => (
+                    <div key={item.index} className="card mb-3">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0">{item.index}</h5>
+                            <Badge bg="info">{item.category}</Badge>
+                        </div>
+                        <div className="card-body">
+                            <div className="row g-2">
+                                {selectedColumns.map(period => (
+                                    <div key={period} className="col-4">
+                                        <div className="p-2 border rounded text-center">
+                                            <div className="small text-muted">
+                                                {period === 'DD' ? 'Drawdown' : period}
+                                            </div>
+                                            <div className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}>
+                                                {item[period] !== '-' ? `${item[period]}%` : '-'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    // Filter the combined indices based on group and search term
+    const combinedIndices = segregateIndices(indicesData);
+    const filteredByGroup = selectedGroup === 'All' 
+        ? combinedIndices 
+        : combinedIndices.filter(item => item.category === selectedGroup);
+    const finalFilteredIndices = filteredByGroup.filter(item => 
+        item.index.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="p-4">
+            <h1 className="mb-4">Indices Returns</h1>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </Button>
+                <div className="btn-group">
+                    <Button 
+                        variant={viewMode === 'table' ? 'primary' : 'outline-primary'} 
+                        onClick={() => setViewMode('table')}
+                    >
+                        Table View
+                    </Button>
+                    <Button 
+                        variant={viewMode === 'card' ? 'primary' : 'outline-primary'} 
+                        onClick={() => setViewMode('card')}
+                    >
+                        Card View
+                    </Button>
+                </div>
+            </div>
+
+            {showFilters && (
+                <Form onSubmit={handleDateSubmit} className="mb-4">
+                    <Row className="mb-3">
+                        <Col xs={12} md={3} className="mb-2 mb-md-0">
+                            <Form.Group>
+                                <Form.Label>Search Index</Form.Label>
+                                <InputGroup>
+                                    <FormControl
+                                        type="text"
+                                        placeholder="Search by index name"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    <Button
+                                        variant="outline-secondary"
+                                        onClick={() => setSearchTerm('')}
+                                        disabled={!searchTerm}
+                                    >
+                                        Clear
+                                    </Button>
+                                </InputGroup>
+                            </Form.Group>
+                        </Col>
+                        <Col xs={12} md={3} className="mb-2 mb-md-0">
+                            <Form.Group>
+                                <Form.Label>Filter by Group</Form.Label>
+                                <Form.Control
+                                    as="select"
+                                    value={selectedGroup}
+                                    onChange={(e) => setSelectedGroup(e.target.value)}
+                                >
+                                    <option value="All">All Groups</option>
+                                    {Object.keys(allIndicesGroups).map(group => (
+                                        <option key={group} value={group}>{group}</option>
+                                    ))}
+                                </Form.Control>
+                            </Form.Group>
+                        </Col>
+                        <Col xs={6} md={3}>
+                            <Form.Group>
+                                <Form.Label>Start Date</Form.Label>
+                                <Form.Control
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </Form.Group>
+                        </Col>
+                        <Col xs={6} md={3}>
+                            <Form.Group>
+                                <Form.Label>End Date</Form.Label>
+                                <Form.Control
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+                    {viewMode === 'card' && (
+                        <Row className="mb-3">
+                            <Col xs={12}>
+                                <Form.Label>Select Columns to Display</Form.Label>
+                                <div className="d-flex flex-wrap gap-2">
+                                    {allReturnPeriods.map(period => (
+                                        <Form.Check
+                                            key={period}
+                                            type="checkbox"
+                                            id={`column-${period}`}
+                                            label={period === 'DD' ? 'Drawdown' : period}
+                                            checked={selectedColumns.includes(period)}
+                                            onChange={() => handleColumnSelection(period)}
+                                            inline
+                                        />
+                                    ))}
+                                </div>
+                            </Col>
+                        </Row>
+                    )}
+                    <Row>
+                        <Col>
+                            <Button
+                                variant="primary"
+                                type="submit"
+                                disabled={(!startDate || !endDate)}
+                            >
+                                Calculate Custom Returns
+                            </Button>
+                        </Col>
+                    </Row>
+                </Form>
+            )}
+
+            <div className="mt-3">
+                <h3 className="my-3 text-primary">All Indices</h3>
+                {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
+                {viewMode === 'card'
+                    ? renderCardView(finalFilteredIndices)
+                    : renderTableView(finalFilteredIndices)}
             </div>
         </div>
     );
 };
-
-
 
 // Server-side protection: Check for the "auth" cookie and redirect if missing
 export async function getServerSideProps(context) {
@@ -415,9 +455,7 @@ export async function getServerSideProps(context) {
         };
     }
 
-    // If the auth cookie exists, render the page
     return { props: {} };
 }
-
 
 export default IndicesPage;

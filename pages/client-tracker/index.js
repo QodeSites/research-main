@@ -1,6 +1,6 @@
 // pages/ClientTracker.js
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Table, Button, Spinner, Alert, Form } from 'react-bootstrap';
+import { Table, Button, Spinner, Alert, Form, Row, Col, InputGroup } from 'react-bootstrap';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { parse } from 'cookie';
 
@@ -12,20 +12,22 @@ const ClientTracker = () => {
     const [benchmarkData, setBenchmarkData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeView, setActiveView] = useState('portfolio');
+    const [activeView, setActiveView] = useState('portfolio'); // "portfolio" or "returns"
+    const [viewMode, setViewMode] = useState('table'); // "table" or "card"
 
+    // Sorting configurations for both sections
     const [portfolioSortConfig, setPortfolioSortConfig] = useState({ key: null, direction: 'ascending' });
     const [returnsSortConfig, setReturnsSortConfig] = useState({ key: null, direction: 'ascending' });
 
+    // Search queries and debounce states
     const [portfolioSearchQuery, setPortfolioSearchQuery] = useState("");
     const [returnsSearchQuery, setReturnsSearchQuery] = useState("");
-
     const portfolioSearchTimeout = useRef(null);
     const returnsSearchTimeout = useRef(null);
-
     const [debouncedPortfolioSearch, setDebouncedPortfolioSearch] = useState("");
     const [debouncedReturnsSearch, setDebouncedReturnsSearch] = useState("");
 
+    // Utility to convert values to numbers
     const convertToNumber = (value) => {
         if (value === null || value === undefined || value === "NaN") return null;
         const parsed = parseFloat(value);
@@ -44,7 +46,6 @@ const ClientTracker = () => {
                 if (!clientResponse.ok) {
                     throw new Error(`ClientTracker HTTP error! status: ${clientResponse.status}`);
                 }
-
                 if (!indicesResponse.ok) {
                     throw new Error(`Indices HTTP error! status: ${indicesResponse.status}`);
                 }
@@ -57,7 +58,7 @@ const ClientTracker = () => {
                     trailing_returns: processReturnsData(clientResult.trailing_returns)
                 });
 
-                // Extract NIFTY 50 data
+                // Extract NIFTY 50 data for benchmark
                 const niftyData = indicesResult.data['NIFTY 50'];
                 setBenchmarkData({
                     dataAsOf: indicesResult.dataAsOf,
@@ -100,40 +101,31 @@ const ClientTracker = () => {
         }));
     };
 
-    // Updated formatNumber function to use 'en-IN' locale for Indian comma separators
+    // Format numbers with Indian locale
     const formatNumber = (value, suffix = '') => {
         if (value === null || value === "NaN" || value === undefined) return "-";
         return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
     };
 
-    // Improved color gradient function
+    // Color gradient for cash percentage
     const getCashPercentageColor = (percentage) => {
         const value = parseFloat(percentage);
         if (isNaN(value)) return '#FFFFFF';
-
-        // Define ideal cash percentage range (e.g., 0-15% might be ideal)
         const idealLow = 0;
         const idealHigh = 15;
-
-        // RGB values for different ranges
         if (value <= idealLow) {
-            // Dark green (ideal) to yellow-green
             const ratio = idealLow === 0 ? 1 : value / idealLow;
             return `rgba(0, ${Math.round(100 + (155 * ratio))}, 0, 0.9)`;
         } else if (value <= idealHigh) {
-            // Yellow-green to yellow
             const ratio = (value - idealLow) / (idealHigh - idealLow);
             return `rgb(${Math.round(200 * ratio)}, ${Math.round(140 + (75 * ratio))}, 0 )`;
         } else if (value <= 30) {
-            // Yellow to orange
             const ratio = (value - idealHigh) / (30 - idealHigh);
             return `rgba(255, ${Math.round(255 - (155 * ratio))}, 0, 0.6)`;
         } else if (value <= 50) {
-            // Orange to light red
             const ratio = (value - 30) / 20;
             return `rgba(255, ${Math.round(100 - (100 * ratio))}, 0, 0.6)`;
         } else {
-            // Light red to dark red
             const ratio = Math.min((value - 50) / 50, 1);
             return `rgba(${Math.round(255 - (100 * ratio))}, 0, 0, 0.6)`;
         }
@@ -142,32 +134,22 @@ const ClientTracker = () => {
     // Generic sort function
     const sortedData = (dataArray, sortConfig) => {
         if (!sortConfig.key) return dataArray;
-
         const sorted = [...dataArray].sort((a, b) => {
             const aValue = a[sortConfig.key];
             const bValue = b[sortConfig.key];
-
-            // Handle null or undefined values
-            if (aValue === null || aValue === undefined) return 1; // Place null/undefined at the end
-            if (bValue === null || bValue === undefined) return -1; // Place null/undefined at the end
-
-            // Handle different data types
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
             if (typeof aValue === 'number' && typeof bValue === 'number') {
                 return aValue - bValue;
             } else {
-                // Compare as strings
                 return aValue.toString().localeCompare(bValue.toString());
             }
         });
-
-        if (sortConfig.direction === 'descending') {
-            sorted.reverse();
-        }
-
+        if (sortConfig.direction === 'descending') sorted.reverse();
         return sorted;
     };
 
-    // Handle sorting for Portfolio Table
+    // Sorting handlers for portfolio and returns
     const requestPortfolioSort = (key) => {
         let direction = 'ascending';
         if (portfolioSortConfig.key === key && portfolioSortConfig.direction === 'ascending') {
@@ -176,7 +158,6 @@ const ClientTracker = () => {
         setPortfolioSortConfig({ key, direction });
     };
 
-    // Handle sorting for Trailing Returns Table
     const requestReturnsSort = (key) => {
         let direction = 'ascending';
         if (returnsSortConfig.key === key && returnsSortConfig.direction === 'ascending') {
@@ -185,43 +166,26 @@ const ClientTracker = () => {
         setReturnsSortConfig({ key, direction });
     };
 
-    // Apply sorting to the data using useMemo for performance optimization
-    const sortedPortfolioData = useMemo(() => sortedData(data.portfolio_tracker, portfolioSortConfig), [data.portfolio_tracker, portfolioSortConfig]);
-    const sortedReturnsData = useMemo(() => sortedData(data.trailing_returns, returnsSortConfig), [data.trailing_returns, returnsSortConfig]);
-
-    // Function to render sort icons
-    const renderSortIcon = (sortConfig, key) => {
-        if (sortConfig.key !== key) {
-            return <FaSort style={{ marginLeft: '5px' }} />;
-        }
-        if (sortConfig.direction === 'ascending') {
-            return <FaSortUp style={{ marginLeft: '5px' }} />;
-        } else {
-            return <FaSortDown style={{ marginLeft: '5px' }} />;
-        }
-    };
-
-    // Debounce logic for Portfolio Search
+    // Debounce search for portfolio
     useEffect(() => {
         clearTimeout(portfolioSearchTimeout.current);
         portfolioSearchTimeout.current = setTimeout(() => {
             setDebouncedPortfolioSearch(portfolioSearchQuery);
-        }, 300); // 300ms delay
-
+        }, 300);
         return () => clearTimeout(portfolioSearchTimeout.current);
     }, [portfolioSearchQuery]);
 
-    // Debounce logic for Returns Search
+    // Debounce search for returns
     useEffect(() => {
         clearTimeout(returnsSearchTimeout.current);
         returnsSearchTimeout.current = setTimeout(() => {
             setDebouncedReturnsSearch(returnsSearchQuery);
-        }, 300); // 300ms delay
-
+        }, 300);
         return () => clearTimeout(returnsSearchTimeout.current);
     }, [returnsSearchQuery]);
 
-    // Filtered Portfolio Data based on debounced search query
+    // Apply sorting and filtering to portfolio data
+    const sortedPortfolioData = useMemo(() => sortedData(data.portfolio_tracker, portfolioSortConfig), [data.portfolio_tracker, portfolioSortConfig]);
     const filteredPortfolioData = useMemo(() => {
         return sortedPortfolioData.filter((item) => {
             const query = debouncedPortfolioSearch.toLowerCase();
@@ -233,7 +197,8 @@ const ClientTracker = () => {
         });
     }, [sortedPortfolioData, debouncedPortfolioSearch]);
 
-    // Filtered Returns Data based on debounced search query
+    // Apply sorting and filtering to returns data
+    const sortedReturnsData = useMemo(() => sortedData(data.trailing_returns, returnsSortConfig), [data.trailing_returns, returnsSortConfig]);
     const filteredReturnsData = useMemo(() => {
         return sortedReturnsData.filter((item) => {
             const query = debouncedReturnsSearch.toLowerCase();
@@ -245,6 +210,7 @@ const ClientTracker = () => {
         });
     }, [sortedReturnsData, debouncedReturnsSearch]);
 
+    // Calculate portfolio totals
     const calculatePortfolioTotals = (data) => {
         return data.reduce((acc, item) => ({
             portfolio_value: (acc.portfolio_value || 0) + (convertToNumber(item.portfolio_value) || 0),
@@ -253,7 +219,17 @@ const ClientTracker = () => {
         }), {});
     };
 
-    // Calculate totals for returns data (averages for percentage values)
+    const portfolioTotals = useMemo(() => {
+        const totals = calculatePortfolioTotals(filteredPortfolioData);
+        const totalPortfolioValue = totals.portfolio_value || 0;
+        return {
+            ...totals,
+            cash_percentage: totalPortfolioValue ? (totals.cash / totalPortfolioValue) * 100 : 0,
+            derivatives_percentage: totals.derivatives_percentage / (filteredPortfolioData.length || 1),
+        };
+    }, [filteredPortfolioData]);
+
+    // Calculate returns totals (averages)
     const calculateReturnsTotals = (data) => {
         const count = data.length;
         return data.reduce((acc, item) => ({
@@ -271,18 +247,6 @@ const ClientTracker = () => {
         }), {});
     };
 
-    // Calculate the portfolio totals memoized
-    const portfolioTotals = useMemo(() => {
-        const totals = calculatePortfolioTotals(filteredPortfolioData);
-        const totalPortfolioValue = totals.portfolio_value || 0;
-        return {
-            ...totals,
-            cash_percentage: totalPortfolioValue ? (totals.cash / totalPortfolioValue) * 100 : 0,
-            derivatives_percentage: totals.derivatives_percentage / (filteredPortfolioData.length || 1),
-        };
-    }, [filteredPortfolioData]);
-
-    // Calculate the returns totals memoized
     const returnsTotals = useMemo(() => {
         const totals = calculateReturnsTotals(filteredReturnsData);
         const count = totals.count || 1;
@@ -300,10 +264,9 @@ const ClientTracker = () => {
         };
     }, [filteredReturnsData]);
 
-    // Benchmark Table Component with Horizontal Layout
+    // Benchmark Table Component (unchanged)
     const BenchmarkTable = ({ benchmark }) => {
         if (!benchmark) return null;
-
         const {
             dataAsOf,
             '10D': d10,
@@ -320,7 +283,6 @@ const ClientTracker = () => {
             'MDD': maxDrawdown,
             Drawdown: mdd
         } = benchmark;
-
         return (
             <div className="mb-4">
                 <h5>Benchmark: NIFTY 50</h5>
@@ -367,11 +329,271 @@ const ClientTracker = () => {
         );
     };
 
+    // Render functions for Portfolio view
+    const renderPortfolioTableView = () => (
+        <Table bordered responsive>
+            <thead>
+                <tr>
+                    <th onClick={() => requestPortfolioSort('name')} style={{ cursor: 'pointer' }}>
+                        Name {portfolioSortConfig.key === 'name' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                        Code {portfolioSortConfig.key === 'nuvama_code' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('account')} style={{ cursor: 'pointer' }}>
+                        Account {portfolioSortConfig.key === 'account' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('portfolio_value')} style={{ cursor: 'pointer' }}>
+                        Portfolio Value {portfolioSortConfig.key === 'portfolio_value' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('cash')} style={{ cursor: 'pointer' }}>
+                        Cash {portfolioSortConfig.key === 'cash' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('cash_percentage')} style={{ cursor: 'pointer' }}>
+                        Cash % {portfolioSortConfig.key === 'cash_percentage' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                    <th onClick={() => requestPortfolioSort('derivatives_percentage')} style={{ cursor: 'pointer' }}>
+                        Derivatives % {portfolioSortConfig.key === 'derivatives_percentage' ? (portfolioSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {filteredPortfolioData.length > 0 ? (
+                    <>
+                        {filteredPortfolioData.map((item, index) => (
+                            <tr key={index}>
+                                <td>{item.name}</td>
+                                <td>{item.nuvama_code}</td>
+                                <td>{item.account}</td>
+                                <td>{formatNumber(item.portfolio_value)}</td>
+                                <td>{formatNumber(item.cash)}</td>
+                                <td style={{
+                                    backgroundColor: getCashPercentageColor(item.cash_percentage),
+                                    color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
+                                    fontWeight: 'bold',
+                                    textAlign: 'center',
+                                    padding: '8px'
+                                }}>
+                                    {formatNumber(item.cash_percentage)}%
+                                </td>
+                                <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
+                            </tr>
+                        ))}
+                        <tr className="font-bold bg-gray-100">
+                            <td colSpan="3">Total / Average ({filteredPortfolioData.length} clients)</td>
+                            <td>{formatNumber(portfolioTotals.portfolio_value)}</td>
+                            <td>{formatNumber(portfolioTotals.cash)}</td>
+                            <td style={{
+                                backgroundColor: getCashPercentageColor(portfolioTotals.cash_percentage),
+                                color: portfolioTotals.cash_percentage > 30 ? 'white' : 'black',
+                                fontWeight: 'bold',
+                                textAlign: 'center',
+                                padding: '8px'
+                            }}>
+                                {formatNumber(portfolioTotals.cash_percentage)}%
+                            </td>
+                            <td>{formatNumber(portfolioTotals.derivatives_percentage)}%</td>
+                        </tr>
+                    </>
+                ) : (
+                    <tr>
+                        <td colSpan="7" className="text-center">
+                            No portfolio entries found.
+                        </td>
+                    </tr>
+                )}
+            </tbody>
+        </Table>
+    );
+
+    const renderPortfolioCardView = () => (
+        <div className="card-grid">
+            {filteredPortfolioData.length > 0 ? (
+                filteredPortfolioData.map((item, index) => (
+                    <div key={index} className="card mb-3">
+                        <div className="card-header">
+                            <h5>{item.name}</h5>
+                            <small>{item.nuvama_code} | {item.account}</small>
+                        </div>
+                        <div className="card-body">
+                            <div className="row g-2">
+                                <div className="col-6">
+                                    <div className="p-2 border rounded text-center">
+                                        <div className="small text-muted">Portfolio Value</div>
+                                        <div>{formatNumber(item.portfolio_value)}</div>
+                                    </div>
+                                </div>
+                                <div className="col-6">
+                                    <div className="p-2 border rounded text-center">
+                                        <div className="small text-muted">Cash</div>
+                                        <div>{formatNumber(item.cash)}</div>
+                                    </div>
+                                </div>
+                                <div className="col-6">
+                                    <div className="p-2 border rounded text-center" style={{
+                                        backgroundColor: getCashPercentageColor(item.cash_percentage),
+                                        color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black'
+                                    }}>
+                                        <div className="small text-muted">Cash %</div>
+                                        <div>{formatNumber(item.cash_percentage)}%</div>
+                                    </div>
+                                </div>
+                                <div className="col-6">
+                                    <div className="p-2 border rounded text-center">
+                                        <div className="small text-muted">Derivatives %</div>
+                                        <div>{formatNumber(item.derivatives_percentage || '-')}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <p className="text-center">No portfolio entries found.</p>
+            )}
+        </div>
+    );
+
+    // Render functions for Trailing Returns view
+    const renderReturnsTableView = () => (
+        <>
+            <BenchmarkTable benchmark={benchmarkData} />
+            <Table bordered striped hover responsive>
+                <thead>
+                    <tr>
+                        <th onClick={() => requestReturnsSort('name')} style={{ cursor: 'pointer' }}>
+                            Name {returnsSortConfig.key === 'name' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('nuvama_code')} style={{ cursor: 'pointer' }}>
+                            Code {returnsSortConfig.key === 'nuvama_code' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('account')} style={{ cursor: 'pointer' }}>
+                            Account {returnsSortConfig.key === 'account' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('d10')} style={{ cursor: 'pointer' }}>
+                            10D {returnsSortConfig.key === 'd10' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('m1')} style={{ cursor: 'pointer' }}>
+                            1M {returnsSortConfig.key === 'm1' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('m3')} style={{ cursor: 'pointer' }}>
+                            3M {returnsSortConfig.key === 'm3' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('m6')} style={{ cursor: 'pointer' }}>
+                            6M {returnsSortConfig.key === 'm6' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('y1')} style={{ cursor: 'pointer' }}>
+                            1Y {returnsSortConfig.key === 'y1' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('y2')} style={{ cursor: 'pointer' }}>
+                            2Y {returnsSortConfig.key === 'y2' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('y5')} style={{ cursor: 'pointer' }}>
+                            5Y {returnsSortConfig.key === 'y5' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('since_inception')} style={{ cursor: 'pointer' }}>
+                            Since Inception {returnsSortConfig.key === 'since_inception' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('mdd')} style={{ cursor: 'pointer' }}>
+                            MDD {returnsSortConfig.key === 'mdd' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                        <th onClick={() => requestReturnsSort('current_drawdown')} style={{ cursor: 'pointer' }}>
+                            Current Drawdown {returnsSortConfig.key === 'current_drawdown' ? (returnsSortConfig.direction === 'ascending' ? <FaSortUp style={{ marginLeft: '5px' }} /> : <FaSortDown style={{ marginLeft: '5px' }} />) : <FaSort style={{ marginLeft: '5px' }} />}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filteredReturnsData.length > 0 ? (
+                        <>
+                            {filteredReturnsData.map((item, index) => (
+                                <tr key={index}>
+                                    <td>{item.name}</td>
+                                    <td>{item.nuvama_code}</td>
+                                    <td>{item.account}</td>
+                                    <td>{formatNumber(item.d10)}%</td>
+                                    <td>{formatNumber(item.m1)}%</td>
+                                    <td>{formatNumber(item.m3)}%</td>
+                                    <td>{formatNumber(item.m6)}%</td>
+                                    <td>{formatNumber(item.y1)}%</td>
+                                    <td>{formatNumber(item.y2)}%</td>
+                                    <td>{formatNumber(item.y5)}%</td>
+                                    <td>{formatNumber(item.since_inception)}%</td>
+                                    <td>{formatNumber(item.mdd)}%</td>
+                                    <td>{formatNumber(item.current_drawdown)}%</td>
+                                </tr>
+                            ))}
+                            <tr className="font-bold bg-gray-100">
+                                <td colSpan="3">Average ({filteredReturnsData.length} clients)</td>
+                                <td>{formatNumber(returnsTotals.d10)}%</td>
+                                <td>{formatNumber(returnsTotals.m1)}%</td>
+                                <td>{formatNumber(returnsTotals.m3)}%</td>
+                                <td>{formatNumber(returnsTotals.m6)}%</td>
+                                <td>{formatNumber(returnsTotals.y1)}%</td>
+                                <td>{formatNumber(returnsTotals.y2)}%</td>
+                                <td>{formatNumber(returnsTotals.y5)}%</td>
+                                <td>{formatNumber(returnsTotals.since_inception)}%</td>
+                                <td>{formatNumber(returnsTotals.mdd)}%</td>
+                                <td>{formatNumber(returnsTotals.current_drawdown)}%</td>
+                            </tr>
+                        </>
+                    ) : (
+                        <tr>
+                            <td colSpan="13" className="text-center">
+                                No trailing returns entries found.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </Table>
+        </>
+    );
+
+    const renderReturnsCardView = () => (
+        <div className="card-grid">
+            {benchmarkData && <BenchmarkTable benchmark={benchmarkData} />}
+            {filteredReturnsData.length > 0 ? (
+                filteredReturnsData.map((item, index) => (
+                    <div key={index} className="card mb-3">
+                        <div className="card-header">
+                            <h5>{item.name}</h5>
+                            <small>{item.nuvama_code} | {item.account}</small>
+                        </div>
+                        <div className="card-body">
+                            <div className="row g-2">
+                                {[
+                                    { label: '10D', value: `${formatNumber(item.d10)}%` },
+                                    { label: '1M', value: `${formatNumber(item.m1)}%` },
+                                    { label: '3M', value: `${formatNumber(item.m3)}%` },
+                                    { label: '6M', value: `${formatNumber(item.m6)}%` },
+                                    { label: '1Y', value: `${formatNumber(item.y1)}%` },
+                                    { label: '2Y', value: `${formatNumber(item.y2)}%` },
+                                    { label: '5Y', value: `${formatNumber(item.y5)}%` },
+                                    { label: 'Since Inception', value: `${formatNumber(item.since_inception)}%` },
+                                    { label: 'MDD', value: `${formatNumber(item.mdd)}%` },
+                                    { label: 'Current DD', value: `${formatNumber(item.current_drawdown)}%` },
+                                ].map((col, idx) => (
+                                    <div key={idx} className="col-6 col-md-4">
+                                        <div className="p-2 border rounded text-center">
+                                            <div className="small text-muted">{col.label}</div>
+                                            <div>{col.value}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <p className="text-center">No trailing returns entries found.</p>
+            )}
+        </div>
+    );
+
     return (
         <div className="m-6">
             <h1 className="mb-4">Client Tracker</h1>
 
-            {/* Toggle Buttons */}
+            {/* Active View Toggle */}
             <div className="mb-3">
                 <Button
                     variant={activeView === 'portfolio' ? 'primary' : 'outline-primary'}
@@ -388,6 +610,24 @@ const ClientTracker = () => {
                 </Button>
             </div>
 
+            {/* View Mode Toggle */}
+            <div className="mb-3 d-flex justify-content-end">
+                <div className="btn-group">
+                    <Button
+                        variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
+                        onClick={() => setViewMode('table')}
+                    >
+                        Table View
+                    </Button>
+                    <Button
+                        variant={viewMode === 'card' ? 'primary' : 'outline-primary'}
+                        onClick={() => setViewMode('card')}
+                    >
+                        Card View
+                    </Button>
+                </div>
+            </div>
+
             {/* Error Message */}
             {error && <Alert variant="danger">{error}</Alert>}
 
@@ -400,10 +640,9 @@ const ClientTracker = () => {
                 </div>
             )}
 
-            {/* Portfolio Details Section */}
+            {/* Portfolio Section */}
             {!loading && !error && activeView === 'portfolio' && (
                 <>
-                    {/* Search Input */}
                     <Form className="mb-3">
                         <Form.Control
                             type="text"
@@ -413,90 +652,15 @@ const ClientTracker = () => {
                             aria-label="Search Portfolio"
                         />
                     </Form>
-
-                    <Table bordered responsive>
-                        <thead>
-                            <tr>
-                                <th onClick={() => requestPortfolioSort('name')} style={{ cursor: 'pointer' }}>
-                                    Name {renderSortIcon(portfolioSortConfig, 'name')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('nuvama_code')} style={{ cursor: 'pointer' }}>
-                                    Code {renderSortIcon(portfolioSortConfig, 'nuvama_code')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('account')} style={{ cursor: 'pointer' }}>
-                                    Account {renderSortIcon(portfolioSortConfig, 'account')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('portfolio_value')} style={{ cursor: 'pointer' }}>
-                                    Portfolio Value {renderSortIcon(portfolioSortConfig, 'portfolio_value')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('cash')} style={{ cursor: 'pointer' }}>
-                                    Cash {renderSortIcon(portfolioSortConfig, 'cash')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('cash_percentage')} style={{ cursor: 'pointer' }}>
-                                    Cash % {renderSortIcon(portfolioSortConfig, 'cash_percentage')}
-                                </th>
-                                <th onClick={() => requestPortfolioSort('derivatives_percentage')} style={{ cursor: 'pointer' }}>
-                                    Derivatives Percentage {renderSortIcon(portfolioSortConfig, 'derivatives_percentage')}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredPortfolioData.length > 0 ? (
-                                <>
-                                    {filteredPortfolioData.map((item, index) => (
-                                        <tr key={index}>
-                                            <td>{item.name}</td>
-                                            <td>{item.nuvama_code}</td>
-                                            <td>{item.account}</td>
-                                            <td>{formatNumber(item.portfolio_value)}</td>
-                                            <td>{formatNumber(item.cash)}</td>
-                                            <td style={{
-                                                backgroundColor: getCashPercentageColor(item.cash_percentage),
-                                                color: parseFloat(item.cash_percentage) > 30 ? 'white' : 'black',
-                                                fontWeight: 'bold',
-                                                textAlign: 'center',
-                                                padding: '8px'
-                                            }}>
-                                                {formatNumber(item.cash_percentage)}%
-                                            </td>
-                                            <td>{formatNumber(item.derivatives_percentage || '-')}%</td>
-                                        </tr>
-                                    ))}
-                                    <tr className="font-bold bg-gray-100">
-                                        <td colSpan="3">Total / Average ({filteredPortfolioData.length} clients)</td>
-                                        <td>{formatNumber(portfolioTotals.portfolio_value)}</td>
-                                        <td>{formatNumber(portfolioTotals.cash)}</td>
-                                        <td style={{
-                                            backgroundColor: getCashPercentageColor(portfolioTotals.cash_percentage),
-                                            color: portfolioTotals.cash_percentage > 30 ? 'white' : 'black',
-                                            fontWeight: 'bold',
-                                            textAlign: 'center',
-                                            padding: '8px'
-                                        }}>
-                                            {formatNumber(portfolioTotals.cash_percentage)}%
-                                        </td>
-                                        <td>{formatNumber(portfolioTotals.derivatives_percentage)}%</td>
-                                    </tr>
-                                </>
-                            ) : (
-                                <tr>
-                                    <td colSpan="7" className="text-center">
-                                        No portfolio entries found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </Table>
+                    {viewMode === 'card'
+                        ? renderPortfolioCardView()
+                        : renderPortfolioTableView()}
                 </>
             )}
 
             {/* Trailing Returns Section */}
             {!loading && !error && activeView === 'returns' && (
                 <>
-                    {/* Benchmark Section */}
-                    <BenchmarkTable benchmark={benchmarkData} />
-
-                    {/* Search Input */}
                     <Form className="mb-3">
                         <Form.Control
                             type="text"
@@ -506,94 +670,9 @@ const ClientTracker = () => {
                             aria-label="Search Trailing Returns"
                         />
                     </Form>
-
-                    <Table bordered striped hover responsive>
-                        <thead>
-                            <tr>
-                                <th onClick={() => requestReturnsSort('name')} style={{ cursor: 'pointer' }}>
-                                    Name {renderSortIcon(returnsSortConfig, 'name')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('nuvama_code')} style={{ cursor: 'pointer' }}>
-                                    Code {renderSortIcon(returnsSortConfig, 'nuvama_code')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('account')} style={{ cursor: 'pointer' }}>
-                                    Account {renderSortIcon(returnsSortConfig, 'account')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('d10')} style={{ cursor: 'pointer' }}>
-                                    10D {renderSortIcon(returnsSortConfig, 'd10')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('m1')} style={{ cursor: 'pointer' }}>
-                                    1M {renderSortIcon(returnsSortConfig, 'm1')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('m3')} style={{ cursor: 'pointer' }}>
-                                    3M {renderSortIcon(returnsSortConfig, 'm3')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('m6')} style={{ cursor: 'pointer' }}>
-                                    6M {renderSortIcon(returnsSortConfig, 'm6')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('y1')} style={{ cursor: 'pointer' }}>
-                                    1Y {renderSortIcon(returnsSortConfig, 'y1')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('y2')} style={{ cursor: 'pointer' }}>
-                                    2Y {renderSortIcon(returnsSortConfig, 'y2')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('y5')} style={{ cursor: 'pointer' }}>
-                                    5Y {renderSortIcon(returnsSortConfig, 'y5')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('since_inception')} style={{ cursor: 'pointer' }}>
-                                    Since Inception {renderSortIcon(returnsSortConfig, 'since_inception')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('mdd')} style={{ cursor: 'pointer' }}>
-                                    MDD {renderSortIcon(returnsSortConfig, 'mdd')}
-                                </th>
-                                <th onClick={() => requestReturnsSort('current_drawdown')} style={{ cursor: 'pointer' }}>
-                                    Current Drawdown {renderSortIcon(returnsSortConfig, 'current_drawdown')}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredReturnsData.length > 0 ? (
-                                <>
-                                    {filteredReturnsData.map((item, index) => (
-                                        <tr key={index}>
-                                            <td>{item.name}</td>
-                                            <td>{item.nuvama_code}</td>
-                                            <td>{item.account}</td>
-                                            <td>{formatNumber(item.d10)}%</td>
-                                            <td>{formatNumber(item.m1)}%</td>
-                                            <td>{formatNumber(item.m3)}%</td>
-                                            <td>{formatNumber(item.m6)}%</td>
-                                            <td>{formatNumber(item.y1)}%</td>
-                                            <td>{formatNumber(item.y2)}%</td>
-                                            <td>{formatNumber(item.y5)}%</td>
-                                            <td>{formatNumber(item.since_inception)}%</td>
-                                            <td>{formatNumber(item.mdd)}%</td>
-                                            <td>{formatNumber(item.current_drawdown)}%</td>
-                                        </tr>
-                                    ))}
-                                    <tr className="font-bold bg-gray-100">
-                                        <td colSpan="3">Average ({filteredReturnsData.length} clients)</td>
-                                        <td>{formatNumber(returnsTotals.d10)}%</td>
-                                        <td>{formatNumber(returnsTotals.m1)}%</td>
-                                        <td>{formatNumber(returnsTotals.m3)}%</td>
-                                        <td>{formatNumber(returnsTotals.m6)}%</td>
-                                        <td>{formatNumber(returnsTotals.y1)}%</td>
-                                        <td>{formatNumber(returnsTotals.y2)}%</td>
-                                        <td>{formatNumber(returnsTotals.y5)}%</td>
-                                        <td>{formatNumber(returnsTotals.since_inception)}%</td>
-                                        <td>{formatNumber(returnsTotals.mdd)}%</td>
-                                        <td>{formatNumber(returnsTotals.current_drawdown)}%</td>
-                                    </tr>
-                                </>
-                            ) : (
-                                <tr>
-                                    <td colSpan="13" className="text-center">
-                                        No trailing returns entries found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </Table>
+                    {viewMode === 'card'
+                        ? renderReturnsCardView()
+                        : renderReturnsTableView()}
                 </>
             )}
         </div>
@@ -614,8 +693,6 @@ export async function getServerSideProps(context) {
             },
         };
     }
-
-    // If the auth cookie exists, render the page
     return { props: {} };
 }
 
