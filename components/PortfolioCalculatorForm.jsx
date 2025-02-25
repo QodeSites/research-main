@@ -343,7 +343,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 placeholder="Leverage"
                 value={system.leverage}
                 onChange={(e) => handleSystemInputChange(sIndex, 'leverage', e.target.value)}
@@ -397,7 +397,7 @@ const PortfolioCalculatorForm = ({
               <Form.Control
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 placeholder="Leverage"
                 value={debtfund.leverage}
                 onChange={(e) => handleDebtFundInputChange(dIndex, 'leverage', e.target.value)}
