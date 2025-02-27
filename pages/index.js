@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-    Container, 
-    Table, 
-    Spinner, 
-    Alert, 
-    Button, 
-    Form, 
-    Row, 
-    Col, 
-    InputGroup, 
+import {
+    Container,
+    Table,
+    Spinner,
+    Alert,
+    Button,
+    Form,
+    Row,
+    Col,
+    InputGroup,
     FormControl,
     Badge
 } from 'react-bootstrap';
@@ -306,136 +306,144 @@ const IndicesPage = () => {
 
     // Filter the combined indices based on group and search term
     const combinedIndices = segregateIndices(indicesData);
-    const filteredByGroup = selectedGroup === 'All' 
-        ? combinedIndices 
+    const filteredByGroup = selectedGroup === 'All'
+        ? combinedIndices
         : combinedIndices.filter(item => item.category === selectedGroup);
-    const finalFilteredIndices = filteredByGroup.filter(item => 
+    const finalFilteredIndices = filteredByGroup.filter(item =>
         item.index.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <div className="p-4">
-            <h1 className="mb-4">Indices Returns</h1>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
-                    {showFilters ? 'Hide Filters' : 'Show Filters'}
-                </Button>
-                <div className="btn-group">
-                    <Button 
-                        variant={viewMode === 'table' ? 'primary' : 'outline-primary'} 
-                        onClick={() => setViewMode('table')}
-                    >
-                        Table View
-                    </Button>
-                    <Button 
-                        variant={viewMode === 'card' ? 'primary' : 'outline-primary'} 
-                        onClick={() => setViewMode('card')}
-                    >
-                        Card View
-                    </Button>
+            {loading ? (
+                <div className="text-center">
+                    <Spinner animation="border" />
                 </div>
-            </div>
-
-            {showFilters && (
-                <Form onSubmit={handleDateSubmit} className="mb-4">
-                    <Row className="mb-3">
-                        <Col xs={12} md={3} className="mb-2 mb-md-0">
-                            <Form.Group>
-                                <Form.Label>Search Index</Form.Label>
-                                <InputGroup>
-                                    <FormControl
-                                        type="text"
-                                        placeholder="Search by index name"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    <Button
-                                        variant="outline-secondary"
-                                        onClick={() => setSearchTerm('')}
-                                        disabled={!searchTerm}
-                                    >
-                                        Clear
-                                    </Button>
-                                </InputGroup>
-                            </Form.Group>
-                        </Col>
-                        <Col xs={12} md={3} className="mb-2 mb-md-0">
-                            <Form.Group>
-                                <Form.Label>Filter by Group</Form.Label>
-                                <Form.Control
-                                    as="select"
-                                    value={selectedGroup}
-                                    onChange={(e) => setSelectedGroup(e.target.value)}
-                                >
-                                    <option value="All">All Groups</option>
-                                    {Object.keys(allIndicesGroups).map(group => (
-                                        <option key={group} value={group}>{group}</option>
-                                    ))}
-                                </Form.Control>
-                            </Form.Group>
-                        </Col>
-                        <Col xs={6} md={3}>
-                            <Form.Group>
-                                <Form.Label>Start Date</Form.Label>
-                                <Form.Control
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col xs={6} md={3}>
-                            <Form.Group>
-                                <Form.Label>End Date</Form.Label>
-                                <Form.Control
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                />
-                            </Form.Group>
-                        </Col>
-                    </Row>
-                    {viewMode === 'card' && (
-                        <Row className="mb-3">
-                            <Col xs={12}>
-                                <Form.Label>Select Columns to Display</Form.Label>
-                                <div className="d-flex flex-wrap gap-2">
-                                    {allReturnPeriods.map(period => (
-                                        <Form.Check
-                                            key={period}
-                                            type="checkbox"
-                                            id={`column-${period}`}
-                                            label={period === 'DD' ? 'Drawdown' : period}
-                                            checked={selectedColumns.includes(period)}
-                                            onChange={() => handleColumnSelection(period)}
-                                            inline
-                                        />
-                                    ))}
-                                </div>
-                            </Col>
-                        </Row>
-                    )}
-                    <Row>
-                        <Col>
+            ) : (
+                <>
+                    <h1 className="mb-4">Indices Returns</h1>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
+                            {showFilters ? 'Hide Filters' : 'Show Filters'}
+                        </Button>
+                        <div className="btn-group">
                             <Button
-                                variant="primary"
-                                type="submit"
-                                disabled={(!startDate || !endDate)}
+                                variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
+                                onClick={() => setViewMode('table')}
                             >
-                                Calculate Custom Returns
+                                Table View
                             </Button>
-                        </Col>
-                    </Row>
-                </Form>
-            )}
+                            <Button
+                                variant={viewMode === 'card' ? 'primary' : 'outline-primary'}
+                                onClick={() => setViewMode('card')}
+                            >
+                                Card View
+                            </Button>
+                        </div>
+                    </div>
 
-            <div className="mt-3">
-                <h3 className="my-3 text-primary">All Indices</h3>
-                {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-                {viewMode === 'card'
-                    ? renderCardView(finalFilteredIndices)
-                    : renderTableView(finalFilteredIndices)}
-            </div>
+                    {showFilters && (
+                        <Form onSubmit={handleDateSubmit} className="mb-4">
+                            <Row className="mb-3">
+                                <Col xs={12} md={3} className="mb-2 mb-md-0">
+                                    <Form.Group>
+                                        <Form.Label>Search Index</Form.Label>
+                                        <InputGroup>
+                                            <FormControl
+                                                type="text"
+                                                placeholder="Search by index name"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                            />
+                                            <Button
+                                                variant="outline-secondary"
+                                                onClick={() => setSearchTerm('')}
+                                                disabled={!searchTerm}
+                                            >
+                                                Clear
+                                            </Button>
+                                        </InputGroup>
+                                    </Form.Group>
+                                </Col>
+                                <Col xs={12} md={3} className="mb-2 mb-md-0">
+                                    <Form.Group>
+                                        <Form.Label>Filter by Group</Form.Label>
+                                        <Form.Control
+                                            as="select"
+                                            value={selectedGroup}
+                                            onChange={(e) => setSelectedGroup(e.target.value)}
+                                        >
+                                            <option value="All">All Groups</option>
+                                            {Object.keys(allIndicesGroups).map(group => (
+                                                <option key={group} value={group}>{group}</option>
+                                            ))}
+                                        </Form.Control>
+                                    </Form.Group>
+                                </Col>
+                                <Col xs={6} md={3}>
+                                    <Form.Group>
+                                        <Form.Label>Start Date</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col xs={6} md={3}>
+                                    <Form.Group>
+                                        <Form.Label>End Date</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                            {viewMode === 'card' && (
+                                <Row className="mb-3">
+                                    <Col xs={12}>
+                                        <Form.Label>Select Columns to Display</Form.Label>
+                                        <div className="d-flex flex-wrap gap-2">
+                                            {allReturnPeriods.map(period => (
+                                                <Form.Check
+                                                    key={period}
+                                                    type="checkbox"
+                                                    id={`column-${period}`}
+                                                    label={period === 'DD' ? 'Drawdown' : period}
+                                                    checked={selectedColumns.includes(period)}
+                                                    onChange={() => handleColumnSelection(period)}
+                                                    inline
+                                                />
+                                            ))}
+                                        </div>
+                                    </Col>
+                                </Row>
+                            )}
+                            <Row>
+                                <Col>
+                                    <Button
+                                        variant="primary"
+                                        type="submit"
+                                        disabled={(!startDate || !endDate)}
+                                    >
+                                        Calculate Custom Returns
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Form>
+                    )}
+
+                    <div className="mt-3">
+                        <h3 className="my-3 text-primary">All Indices</h3>
+                        {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
+                        {viewMode === 'card'
+                            ? renderCardView(finalFilteredIndices)
+                            : renderTableView(finalFilteredIndices)}
+                    </div>
+                </>
+            )}
         </div>
     );
 };

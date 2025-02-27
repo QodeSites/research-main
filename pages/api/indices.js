@@ -23,22 +23,22 @@ export default async function handler(req, res) {
 
         // Separate query for custom date range
         const customDateQuery = startDate && endDate ? `
-    SELECT t1.indices, t1.nav as start_nav, t1.date as start_date, 
-           t2.nav as end_nav, t2.date as end_date
-    FROM tblresearch_new t1
-    JOIN (
-        SELECT indices, nav, date,
-               ROW_NUMBER() OVER (PARTITION BY indices ORDER BY date DESC) as rn
-        FROM tblresearch_new
-        WHERE date <= $2
-    ) t2 ON t1.indices = t2.indices AND t2.rn = 1
-    WHERE t1.date = (
-        SELECT MIN(date)
-        FROM tblresearch_new
-        WHERE date >= $1
-    )
-` : null;
-
+            SELECT t1.indices, t1.nav as start_nav, t1.date as start_date, 
+                t2.nav as end_nav, t2.date as end_date
+            FROM tblresearch_new t1
+            JOIN (
+                SELECT indices, nav, date,
+                    ROW_NUMBER() OVER (PARTITION BY indices ORDER BY date DESC) as rn
+                FROM tblresearch_new
+                WHERE date <= $2
+            ) t2 ON t1.indices = t2.indices AND t2.rn = 1
+            WHERE t1.date = (
+                SELECT MIN(date)
+                FROM tblresearch_new
+                WHERE date >= $1
+            )
+        ` : null;
+        console.log(customDateQuery)
         // Execute queries
         const { rows: niftyDays } = await db.query(niftyDaysQuery);
         const { rows } = await db.query(query);
