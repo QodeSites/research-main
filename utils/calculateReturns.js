@@ -22,11 +22,13 @@ export function calculateReturns(data, period, validTradingDays) {
             : ((Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100).toFixed(2);
     }
 
-    const shortPeriods = ['1D', '2D', '3D'];
+    // Handle day-based periods (1D, 2D, 3D, 10D, 1W)
+    const shortPeriods = ['1D', '2D', '3D', '10D', '1W'];
     if (shortPeriods.includes(period)) {
-        const daysMap = { '1D': 1, '2D': 2, '3D': 3 };
+        const daysMap = { '1D': 1, '2D': 2, '3D': 3, '10D': 10, '1W': 7 };
         const targetDaysBack = daysMap[period];
-
+        
+        // For short periods, use the existing day-based logic
         let validDaysCount = 0;
         let comparisonData = null;
         
@@ -47,40 +49,21 @@ export function calculateReturns(data, period, validTradingDays) {
         return (((currentValue - comparisonValue) / comparisonValue) * 100).toFixed(2);
     }
 
-    let comparisonDate;
-    let minimumDataPoints;
-
-    if (period === '1W') {
-        comparisonDate = addDays(currentDate, -7);
-        minimumDataPoints = 5;
-    } else if (period === '10D') {
-        comparisonDate = addDays(currentDate, -10);
-        minimumDataPoints = 7;
-    } else {
-        const periodMap = {
-            '1M': [1, 15], '3M': [3, 45], '6M': [6, 90], '9M': [9, 135],
-            '1Y': [12, 180], '2Y': [24, 360], '3Y': [36, 540],
-            '4Y': [48, 720], '5Y': [60, 900]
-        };
-        
-        if (!periodMap[period]) return '-';
-        
-        const [months, points] = periodMap[period];
-        comparisonDate = subtractMonths(currentDate, months);
-        minimumDataPoints = points;
-    }
-
-    const dataPointsInPeriod = sortedData.filter(d => {
-        const date = new Date(d.date);
-        const dateStr = date.toISOString().split('T')[0];
-        return date >= comparisonDate && 
-               date <= currentDate && 
-               (!validTradingDays || validTradingDays.has(dateStr));
-    }).length;
-
-    if (dataPointsInPeriod < minimumDataPoints) return '-';
-
-    const comparisonDataFound = findClosestData(sortedData, comparisonDate, validTradingDays);
+    // For all month-based periods (1M and longer), use end-of-month logic
+    const periodMap = {
+        '1M': 1, '3M': 3, '6M': 6, '9M': 9,
+        '1Y': 12, '2Y': 24, '3Y': 36, '4Y': 48, '5Y': 60
+    };
+    
+    if (!periodMap[period]) return '-';
+    
+    const months = periodMap[period];
+    
+    // Get the end of the month for the comparison date
+    const comparisonDate = subtractMonths(currentDate, months);
+    
+    // Find the data point closest to the end of the month
+    const comparisonDataFound = findClosestEOMData(sortedData, comparisonDate, validTradingDays);
     if (!comparisonDataFound || !comparisonDataFound.nav) return '-';
 
     comparisonValue = comparisonDataFound.nav;
@@ -92,7 +75,7 @@ export function calculateReturns(data, period, validTradingDays) {
         : ((Math.pow(currentValue / comparisonValue, 1 / yearDiff) - 1) * 100).toFixed(2);
 }
 
-// Helper functions
+
 function addDays(date, days) {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
@@ -101,63 +84,45 @@ function addDays(date, days) {
 
 function subtractMonths(date, months) {
     const result = new Date(date);
+    
+    // Calculate target month and year
     const targetMonth = result.getMonth() - months;
     const targetYear = result.getFullYear() + Math.floor(targetMonth / 12);
-
-    // Calculate the target month properly, handling negative months
+    
+    // Calculate the normalized target month (handling negative months)
     const normalizedTargetMonth = ((targetMonth % 12) + 12) % 12;
-
+    
+    // Set to the last day of the target month
     result.setFullYear(targetYear);
-    result.setMonth(normalizedTargetMonth);
-
-    // Handle end-of-month cases
-    const originalDate = date.getDate();
-    const newLastDay = new Date(targetYear, normalizedTargetMonth + 1, 0).getDate();
-
-    // Set to the last day of month if original date is greater than last day of target month
-    result.setDate(Math.min(originalDate, newLastDay));
-
+    // Setting day to 0 of next month gives last day of current month
+    result.setMonth(normalizedTargetMonth + 1, 0);
+    
     return result;
 }
 
-function subtractYears(date, years) {
-    const result = new Date(date);
-    result.setFullYear(result.getFullYear() - years);
-
-    // Handle February 29 for leap years
-    if (date.getMonth() === 1 && date.getDate() === 29 && !isLeapYear(result.getFullYear())) {
-        result.setDate(28);
-    }
-    return result;
+// Function to find the closest data point to the end of a month
+function findClosestEOMData(sortedData, targetEndOfMonth, validTradingDays) {
+    // Create a window of 7 days before the end of month to find the closest valid trading day
+    const windowStart = new Date(targetEndOfMonth);
+    windowStart.setDate(windowStart.getDate() - 7);
+    
+    // Filter eligible data points (within the window and valid trading days)
+    const eligiblePoints = sortedData.filter(item => {
+        const itemDate = new Date(item.date);
+        const dateStr = itemDate.toISOString().split('T')[0];
+        return itemDate <= targetEndOfMonth && 
+               itemDate >= windowStart && 
+               (!validTradingDays || validTradingDays.has(dateStr));
+    });
+    
+    // Sort descending by date to get the closest date to end of month
+    eligiblePoints.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Return the closest or null if none found
+    return eligiblePoints.length > 0 
+        ? { ...eligiblePoints[0], date: new Date(eligiblePoints[0].date) } 
+        : null;
 }
-
-function isLeapYear(year) {
-    return ((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0);
-}
-
-function findClosestData(sortedData, targetDate) {
-    let closest = null;
-    let minDiff = Infinity;
-
-    // First try to find exact match or closest previous date
-    for (let i = sortedData.length - 1; i >= 0; i--) {
-        const currentDate = new Date(sortedData[i].date);
-        const diff = targetDate - currentDate;
-
-        if (diff >= 0 && diff < minDiff) {
-            minDiff = diff;
-            closest = sortedData[i];
-        }
-    }
-
-    // If no previous date found, take the earliest available date
-    if (!closest && sortedData.length > 0) {
-        closest = sortedData[0];
-    }
-
-    return closest ? { ...closest, date: new Date(closest.date) } : null;
-}
-
 export function calculateDrawdown(data) {
     if (!data || data.length === 0) return '-';
 
