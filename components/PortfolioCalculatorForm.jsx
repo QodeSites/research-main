@@ -56,16 +56,17 @@ const STRATEGIES = [
     value: "Equity + Puts + Calls",
     group: "Qode Derivatives Portfolio",
   },
-];
-
-const DEBTFUNDS = [
   { label: "QGFLong", value: "QGFLong" },
   { label: "Shortflat", value: "Shortflat" },
   { label: "LongOpt", value: "LongOpt" },
-  { label: "QGF+Derivatives", value: "QGF+Derivatives" },
-  { label: "QGF", value: "QGF" },
-  { label: "QAW", value: "QAW" },
-  { label: "QVF", value: "QVF" },
+  {
+    label: "NSE Momentum + Qode (Puts)",
+    value: "Equity + Puts",
+    group: "Qode Derivatives Portfolio",
+  },
+];
+
+const DEBTFUNDS = [
   { label: "Qode All Weather", value: "QAW", group: "Qode Strategies" },
   { label: "Qode Growth Fund", value: "QGF", group: "Qode Strategies" },
   { label: "Qode All Weather - 1", value: "QAW1", group: "Qode Strategies" },
@@ -103,6 +104,14 @@ const DEBTFUNDS = [
   {
     label: "NSE Momentum + Qode (Puts + Calls)",
     value: "Equity + Puts + Calls",
+    group: "Qode Derivatives Portfolio",
+  },
+  { label: "QGFLong", value: "QGFLong" },
+  { label: "Shortflat", value: "Shortflat" },
+  { label: "LongOpt", value: "LongOpt" },
+  {
+    label: "NSE Momentum + Qode (Puts)",
+    value: "Equity + Puts",
     group: "Qode Derivatives Portfolio",
   },
 ];
