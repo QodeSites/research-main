@@ -109,11 +109,6 @@ const DEBTFUNDS = [
   { label: "QGFLong", value: "QGFLong" },
   { label: "Shortflat", value: "Shortflat" },
   { label: "LongOpt", value: "LongOpt" },
-  {
-    label: "NSE Momentum + Qode (Puts)",
-    value: "Equity + Puts",
-    group: "Qode Derivatives Portfolio",
-  },
 ];
 
 const PortfolioCalculatorForm = ({
