@@ -31,7 +31,7 @@ const ReturnsComparisonPage = () => {
     
     // Responsive display
     const [viewMode, setViewMode] = useState('full');
-    const [selectedColumns, setSelectedColumns] = useState(['1Y', '3Y', 'CDR']);
+    const [selectedColumns, setSelectedColumns] = useState(['1Y', '3Y', 'CDR','CDR_MDD']);
 
     // Single sorting configuration
     const [sortConfig, setSortConfig] = useState({
@@ -83,7 +83,7 @@ const ReturnsComparisonPage = () => {
     };
 
     // All available return periods
-    const allReturnPeriods = ['1Y', '2Y', '3Y', '4Y', '5Y', 'CDR'];
+    const allReturnPeriods = ['1Y', '2Y', '3Y', '4Y', '5Y', 'CDR','CDR_MDD'];
 
     // Detect screen size on mount and window resize
     useEffect(() => {
@@ -124,7 +124,8 @@ const ReturnsComparisonPage = () => {
             'Since Inception': '-',
             'Drawdown': '-',
             'MDD': '-',
-            'CDR': '-' // Ensure CDR is included for all indices
+            'CDR': '-',
+            'CDR_MDD' : '-' // Ensure CDR is included for all indices
         });
 
         const combined = [];

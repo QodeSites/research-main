@@ -64,7 +64,15 @@ const STRATEGIES = [
     value: "Equity + Puts",
     group: "Qode Derivatives Portfolio",
   },
+  // New entries added
+  { label: "GOLDBEES", value: "GOLDBEES", group: "Index" },
+  { label: "QFH", value: "QFH", group: "Qode Strategies" },
+  { label: "NIFTYM150MOMNTM50", value: "NIFTYM150MOMNTM50", group: "Index" },
+  { label: "NIFTY100 LOWVOL30", value: "NIFTY100 LOWVOL30", group: "Index" },
+  { label: "NIFTY200MOMENTM30", value: "NIFTY200MOMENTM30", group: "Index" },
+  { label: "QTF", value: "QTF", group: "Qode Strategies" },
 ];
+
 
 const DEBTFUNDS = [
   { label: "Qode All Weather", value: "QAW", group: "Qode Strategies" },
@@ -109,6 +117,18 @@ const DEBTFUNDS = [
   { label: "QGFLong", value: "QGFLong" },
   { label: "Shortflat", value: "Shortflat" },
   { label: "LongOpt", value: "LongOpt" },
+  {
+    label: "NSE Momentum + Qode (Puts)",
+    value: "Equity + Puts",
+    group: "Qode Derivatives Portfolio",
+  },
+  // New entries added
+  { label: "GOLDBEES", value: "GOLDBEES", group: "Index" },
+  { label: "QFH", value: "QFH", group: "Qode Strategies" },
+  { label: "NIFTYM150MOMNTM50", value: "NIFTYM150MOMNTM50", group: "Index" },
+  { label: "NIFTY100 LOWVOL30", value: "NIFTY100 LOWVOL30", group: "Index" },
+  { label: "NIFTY200MOMENTM30", value: "NIFTY200MOMENTM30", group: "Index" },
+  { label: "QTF", value: "QTF", group: "Qode Strategies" },
 ];
 
 const PortfolioCalculatorForm = ({

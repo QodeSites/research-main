@@ -12,8 +12,21 @@ import 'styles/theme.scss';
 import DefaultDashboardLayout from 'layouts/DefaultDashboardLayout';
 import App from 'next/app';
 import { parse } from 'cookie';
+import { useEffect } from 'react';
+import io from 'socket.io-client';
 
 function MyApp({ Component, pageProps, isLoggedIn }) {
+  useEffect(() => {
+    // Initialize socket connection when app loads
+    fetch('/api/socket');
+    
+    // Optional: Set up global socket connection
+    const socket = io();
+    
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
   const router = useRouter();
   const pageURL = process.env.baseURL + router.pathname;
   const title = "Research | Qodeinvest";

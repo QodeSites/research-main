@@ -29,10 +29,16 @@ const NavbarVertical = (props) => {
   // Click-outside handler: if click occurs outside navbar, hide it.
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (navbarRef.current && !navbarRef.current.contains(event.target)) {
+      // Use the DOM element directly instead of SimpleBar's ref
+      if (
+        navbarRef.current &&
+        navbarRef.current.container && // Access the container of SimpleBar
+        !navbarRef.current.container.contains(event.target)
+      ) {
         hideSidebar();
       }
     };
+    
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -126,6 +132,15 @@ const NavbarVertical = (props) => {
                   onClick={hideSidebar}
                 >
                   Drawdown Comparison
+                </Link>
+              </li>
+              <li className="nav-item mb-3">
+                <Link
+                  href="/monthly-report"
+                  className="nav-link d-flex align-items-center"
+                  onClick={hideSidebar}
+                >
+                  Monthly Report
                 </Link>
               </li>
             </ul>

@@ -38,7 +38,7 @@ export default async function handler(req, res) {
                 WHERE date >= $1
             )
         ` : null;
-        console.log(customDateQuery)
+        // console.log(customDateQuery)
         // Execute queries
         const { rows: niftyDays } = await db.query(niftyDaysQuery);
         const { rows } = await db.query(query);
@@ -129,52 +129,45 @@ export default async function handler(req, res) {
         }
 
         // Add validation for custom date range data points
+        // Add validation for custom date range data points and calculate custom date MDD
         if (startDate && endDate) {
             for (const [index, data] of Object.entries(groupedData)) {
                 // Filter data to only include points within date range and valid trading days
                 const customDateData = data.filter(row => {
                     const rowDate = new Date(row.date);
                     const dateStr = rowDate.toISOString().split('T')[0];
-
                     const isWithinRange = rowDate >= new Date(startDate) && rowDate <= new Date(endDate);
                     const isValidTradingDay = !qodeStrategyIndices.includes(index) || validTradingDays.has(dateStr);
-
                     return isWithinRange && isValidTradingDay;
                 });
 
-                // Calculate required number of data points
-                const timeDiff = new Date(endDate) - new Date(startDate);
-                const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-
-                // For Qode indices, check against valid trading days in the period
-                if (qodeStrategyIndices.includes(index)) {
-                    // Count valid trading days in the date range
-                    let validDaysInRange = 0;
-                    for (const dateStr of validTradingDays) {
-                        const date = new Date(dateStr);
-                        if (date >= new Date(startDate) && date <= new Date(endDate)) {
-                            validDaysInRange++;
+                // Instead of a strict threshold based on total days, simply require at least 2 data points
+                if (customDateData.length < 2) {
+                    results[index]['CDR'] = '-';
+                    results[index]['CDR_MDD'] = '-';
+                } else {
+                    // Optionally, you could still compute a requiredPoints threshold for Qode indices only:
+                    if (qodeStrategyIndices.includes(index)) {
+                        let validDaysInRange = 0;
+                        for (const dateStr of validTradingDays) {
+                            const date = new Date(dateStr);
+                            if (date >= new Date(startDate) && date <= new Date(endDate)) {
+                                validDaysInRange++;
+                            }
+                        }
+                        const requiredPoints = Math.floor(validDaysInRange * 0.8);
+                        if (customDateData.length < requiredPoints) {
+                            results[index]['CDR'] = '-';
+                            results[index]['CDR_MDD'] = '-';
+                            continue;
                         }
                     }
-
-                    // Set minimum required points to 80% of valid trading days
-                    const requiredPoints = Math.floor(validDaysInRange * 0.8);
-
-                    // Mark as invalid if insufficient data points
-                    if (customDateData.length < requiredPoints) {
-                        results[index]['CDR'] = '-';
-                    }
-                } else {
-                    // For non-Qode indices, use the original calculation
-                    const requiredPoints = Math.floor(daysDiff * 0.8);
-                    const minimumPoints = Math.floor(requiredPoints * 0.8);
-
-                    if (customDateData.length < minimumPoints) {
-                        results[index]['CDR'] = '-';
-                    }
+                    // If sufficient data exists, calculate the custom date MDD
+                    results[index]['CDR_MDD'] = calculateMDD(customDateData);
                 }
             }
         }
+
 
         res.status(200).json({
             dataAsOf,
