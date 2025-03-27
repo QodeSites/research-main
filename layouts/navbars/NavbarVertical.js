@@ -18,30 +18,38 @@ import { parse } from "cookie";
 const NavbarVertical = (props) => {
   const [activeMenus, setActiveMenus] = useState([]);
   const navbarRef = useRef(null);
+  const pathname = usePathname(); // Get current route
 
   // Helper to hide sidebar if the function is passed in props.data
   const hideSidebar = () => {
+    console.log("hideSidebar called"); // Debug log
     if (props.data && typeof props.data.SidebarToggleMenu === "function") {
+      console.log("Calling SidebarToggleMenu with false"); // Debug log
       props.data.SidebarToggleMenu(false);
+    } else {
+      console.warn("SidebarToggleMenu not available in props.data"); // Warn if missing
     }
   };
 
-  // Click-outside handler: if click occurs outside navbar, hide it.
+  // Click-outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Use the DOM element directly instead of SimpleBar's ref
       if (
         navbarRef.current &&
-        navbarRef.current.container && // Access the container of SimpleBar
+        navbarRef.current.container &&
         !navbarRef.current.container.contains(event.target)
       ) {
         hideSidebar();
       }
     };
-    
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Ensure sidebar hides on route change
+  useEffect(() => {
+    hideSidebar();
+  }, [pathname]); // Trigger when route changes
 
   const CustomToggle = ({ children, eventKey, icon }) => {
     const { activeEventKey } = useContext(AccordionContext);
@@ -74,13 +82,6 @@ const NavbarVertical = (props) => {
               {icon && <span className="me-2">{icon}</span>}
               {children}
             </div>
-            {/* Uncomment below if you wish to show a rotating chevron */}
-            {/* <ChevronDown
-              size={16}
-              className={`transform transition-transform ${
-                isCurrentEventKey ? "rotate-180" : ""
-              }`}
-            /> */}
           </div>
         </Link>
       </li>
@@ -152,7 +153,7 @@ const NavbarVertical = (props) => {
               className="nav-link"
               onClick={hideSidebar}
             >
-              <Clipboard className="feather-icon" size={18} />&nbsp;
+              <Clipboard className="feather-icon" size={18} /> 
               Portfolio Visualiser
             </Link>
           </Card>
@@ -163,7 +164,7 @@ const NavbarVertical = (props) => {
               className="nav-link"
               onClick={hideSidebar}
             >
-              <Clipboard className="feather-icon" size={18} />&nbsp;
+              <Clipboard className="feather-icon" size={18} /> 
               Client Tracker
             </Link>
           </Card>
@@ -174,7 +175,7 @@ const NavbarVertical = (props) => {
               className="nav-link"
               onClick={hideSidebar}
             >
-              <Clipboard className="feather-icon" size={18} />&nbsp;
+              <Clipboard className="feather-icon" size={18} /> 
               Website Enquiries
             </Link>
           </Card>
@@ -199,7 +200,6 @@ export async function getServerSideProps(context) {
     };
   }
 
-  // If the auth cookie exists, render the page
   return { props: {} };
 }
 

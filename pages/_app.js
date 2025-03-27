@@ -7,7 +7,7 @@ import { Analytics } from '@vercel/analytics/react';
 import '../components/components.css';
 import './index.css';
 import 'styles/theme.scss';
-
+import 'react-bootstrap-typeahead/css/Typeahead.css';
 // import default layouts
 import DefaultDashboardLayout from 'layouts/DefaultDashboardLayout';
 import App from 'next/app';
