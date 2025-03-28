@@ -16,15 +16,21 @@ export default async function handler(req, res) {
         strategy,
         total
       FROM pms_clients_tracker.pms_holdings_percentage
-      ORDER BY symbolname, clientcode
+      ORDER BY strategy, symbolname, clientcode
     `;
 
     const result = await db.query(query);
 
-    // Group data by stock name
+    // Group data by strategy and stock name
     const grouped = result.rows.reduce((acc, row) => {
-      if (!acc[row.symbolname]) {
-        acc[row.symbolname] = {
+      // Create strategy group if not exists
+      if (!acc[row.strategy]) {
+        acc[row.strategy] = {};
+      }
+
+      // Create stock entry within strategy if not exists
+      if (!acc[row.strategy][row.symbolname]) {
+        acc[row.strategy][row.symbolname] = {
           symbolname: row.symbolname,
           total: row.total,
           strategy: row.strategy,
@@ -32,7 +38,8 @@ export default async function handler(req, res) {
         };
       }
 
-      acc[row.symbolname].clients.push({
+      // Add client data to the specific strategy and stock
+      acc[row.strategy][row.symbolname].clients.push({
         clientcode: row.clientcode,
         percentassets: row.percentassets
       });
@@ -40,8 +47,10 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
-    // Convert to array and return
-    const response = Object.values(grouped);
+    // Flatten the grouped data
+    const response = Object.values(grouped).flatMap(strategyStocks => 
+      Object.values(strategyStocks)
+    );
 
     res.status(200).json(response);
   } catch (error) {

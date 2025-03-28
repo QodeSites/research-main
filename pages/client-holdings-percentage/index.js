@@ -51,16 +51,16 @@ const Index = () => {
     const filterData = (keyword, strategy) => {
         let filteredData = data;
 
-        // Filter by search keyword
+        // Filter by strategy first
+        if (strategy !== "All") {
+            filteredData = filteredData.filter((item) => item.strategy === strategy);
+        }
+
+        // Then filter by search keyword
         if (keyword) {
             filteredData = filteredData.filter((item) =>
                 item.symbolname.toLowerCase().includes(keyword)
             );
-        }
-
-        // Filter by strategy
-        if (strategy !== "All") {
-            filteredData = filteredData.filter((item) => item.strategy === strategy);
         }
 
         setFiltered(filteredData);
