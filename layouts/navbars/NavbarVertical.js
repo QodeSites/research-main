@@ -171,6 +171,17 @@ const NavbarVertical = (props) => {
 
           <Card bsPrefix="nav-item">
             <Link
+              href="/client-holdings-percentage"
+              className="nav-link"
+              onClick={hideSidebar}
+            >
+              <Clipboard className="feather-icon" size={18} /> 
+              Client Holdings Percentage
+            </Link>
+          </Card>
+
+          <Card bsPrefix="nav-item">
+            <Link
               href="/website-enquiries"
               className="nav-link"
               onClick={hideSidebar}
