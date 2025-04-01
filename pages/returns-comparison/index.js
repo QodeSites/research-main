@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-    Container, 
-    Table, 
-    Spinner, 
-    Alert, 
-    Button, 
-    Form, 
-    Row, 
-    Col, 
-    InputGroup, 
+import {
+    Container,
+    Table,
+    Spinner,
+    Alert,
+    Button,
+    Form,
+    Row,
+    Col,
+    InputGroup,
     FormControl,
     Badge
 } from 'react-bootstrap';
@@ -28,10 +28,10 @@ const ReturnsComparisonPage = () => {
     // Filtering and Searching
     const [selectedGroup, setSelectedGroup] = useState('All');
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     // Responsive display
     const [viewMode, setViewMode] = useState('full');
-    const [selectedColumns, setSelectedColumns] = useState(['1Y', '3Y', 'CDR','CDR_MDD']);
+    const [selectedColumns, setSelectedColumns] = useState(['1Y', '3Y', 'CDR', 'CDR_MDD']);
 
     // Single sorting configuration
     const [sortConfig, setSortConfig] = useState({
@@ -83,7 +83,7 @@ const ReturnsComparisonPage = () => {
     };
 
     // All available return periods
-    const allReturnPeriods = ['1Y', '2Y', '3Y', '4Y', '5Y', 'CDR','CDR_MDD'];
+    const allReturnPeriods = ['1Y', '2Y', '3Y', '4Y', '5Y', 'CDR', 'CDR_MDD'];
 
     // Detect screen size on mount and window resize
     useEffect(() => {
@@ -94,13 +94,13 @@ const ReturnsComparisonPage = () => {
                 setViewMode('full');
             }
         };
-        
+
         // Set initial value
         handleResize();
-        
+
         // Add event listener
         window.addEventListener('resize', handleResize);
-        
+
         // Cleanup
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -125,7 +125,7 @@ const ReturnsComparisonPage = () => {
             'Drawdown': '-',
             'MDD': '-',
             'CDR': '-',
-            'CDR_MDD' : '-' // Ensure CDR is included for all indices
+            'CDR_MDD': '-' // Ensure CDR is included for all indices
         });
 
         const combined = [];
@@ -260,7 +260,7 @@ const ReturnsComparisonPage = () => {
 
     const renderCardView = (indices) => {
         const sortedIndices = getSortedIndices(indices);
-        
+
         return (
             <div className="card-grid">
                 {sortedIndices.map((item, idx) => (
@@ -271,12 +271,23 @@ const ReturnsComparisonPage = () => {
                         </div>
                         <div className="card-body">
                             <div className="row g-2">
-                                {selectedColumns.map(period => (
+                                {selectedColumns.map((period) => (
                                     <div key={period} className="col-4">
                                         <div className="p-2 border rounded text-center">
                                             <div className="small text-muted">{period}</div>
-                                            <div className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}>
-                                                {item[period]}{item[period] !== '-' ? '%' : ''}
+                                            <div
+                                                className={
+                                                    period === 'CDR_MDD'
+                                                        ? 'text-danger' // Always red for CDR_MDD
+                                                        : item[period] !== '-' && parseFloat(item[period]) < 0
+                                                            ? 'text-danger'
+                                                            : ''
+                                                }
+                                            >
+                                                {period === 'CDR_MDD' && item[period] !== '-' && parseFloat(item[period]) > 0
+                                                    ? `-${item[period]}`
+                                                    : item[period]}
+                                                {item[period] !== '-' ? '%' : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -311,7 +322,6 @@ const ReturnsComparisonPage = () => {
                             >
                                 Category{renderSortIndicator('category')}
                             </th>
-                            {/* Dynamic headers for returns */}
                             {displayColumns.map((period) => (
                                 <th
                                     key={period}
@@ -329,13 +339,21 @@ const ReturnsComparisonPage = () => {
                                 <td>{idx + 1}</td>
                                 <td>{item.index}</td>
                                 <td>{item.category}</td>
-                                {/* Render return values with conditional styling */}
                                 {displayColumns.map((period) => (
-                                    <td 
+                                    <td
                                         key={period}
-                                        className={item[period] !== '-' && parseFloat(item[period]) < 0 ? 'text-danger' : ''}
+                                        className={
+                                            period === 'CDR_MDD'
+                                                ? 'text-danger' // Always red for CDR_MDD
+                                                : item[period] !== '-' && parseFloat(item[period]) < 0
+                                                    ? 'text-danger'
+                                                    : ''
+                                        }
                                     >
-                                        {item[period]}{item[period] !== '-' ? '%' : ''}
+                                        {period === 'CDR_MDD' && item[period] !== '-' && parseFloat(item[period]) > 0
+                                            ? `-${item[period]}`
+                                            : item[period]}
+                                        {item[period] !== '-' ? '%' : ''}
                                     </td>
                                 ))}
                             </tr>
@@ -365,41 +383,41 @@ const ReturnsComparisonPage = () => {
     const combinedIndices = segregateIndices(indicesData);
 
     // Apply Group Filter
-    const filteredByGroup = selectedGroup === 'All' 
-        ? combinedIndices 
+    const filteredByGroup = selectedGroup === 'All'
+        ? combinedIndices
         : combinedIndices.filter(item => item.category === selectedGroup);
 
     // Apply Search Filter
-    const finalFilteredIndices = filteredByGroup.filter(item => 
+    const finalFilteredIndices = filteredByGroup.filter(item =>
         item.index.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <div className="p-4">
             <h1 className="mb-4">Returns Comparison</h1>
-            
+
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <Button variant="outline-primary" onClick={() => setShowFilters(!showFilters)}>
                     {showFilters ? 'Hide Filters' : 'Show Filters'}
                 </Button>
-                
+
                 <div className="d-flex align-items-center">
                     <div className="btn-group me-2">
-                        <Button 
-                            variant={viewMode === 'full' ? 'primary' : 'outline-primary'} 
+                        <Button
+                            variant={viewMode === 'full' ? 'primary' : 'outline-primary'}
                             onClick={() => setViewMode('full')}
                             className="d-none d-md-inline"
                         >
                             Full View
                         </Button>
-                        <Button 
-                            variant={viewMode === 'compact' ? 'primary' : 'outline-primary'} 
+                        <Button
+                            variant={viewMode === 'compact' ? 'primary' : 'outline-primary'}
                             onClick={() => setViewMode('compact')}
                         >
                             {window.innerWidth < 768 ? 'Table View' : 'Compact View'}
                         </Button>
-                        <Button 
-                            variant={viewMode === 'card' ? 'primary' : 'outline-primary'} 
+                        <Button
+                            variant={viewMode === 'card' ? 'primary' : 'outline-primary'}
                             onClick={() => setViewMode('card')}
                             className="d-md-none"
                         >
@@ -408,7 +426,7 @@ const ReturnsComparisonPage = () => {
                     </div>
                 </div>
             </div>
-            
+
             {showFilters && (
                 <Form onSubmit={handleDateSubmit} className="mb-4">
                     <Row className="mb-3">
@@ -468,7 +486,7 @@ const ReturnsComparisonPage = () => {
                             </Form.Group>
                         </Col>
                     </Row>
-                    
+
                     {viewMode !== 'full' && (
                         <Row className="mb-3">
                             <Col xs={12}>
@@ -507,9 +525,9 @@ const ReturnsComparisonPage = () => {
             <div className="mt-3">
                 <h3 className="my-3 text-primary">All Indices</h3>
                 {dataAsOf && <p className="text-muted">Data as of: {formatDate(dataAsOf)}</p>}
-                
-                {viewMode === 'card' ? 
-                    renderCardView(finalFilteredIndices) : 
+
+                {viewMode === 'card' ?
+                    renderCardView(finalFilteredIndices) :
                     renderFullTable(finalFilteredIndices)
                 }
             </div>
