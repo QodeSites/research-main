@@ -283,7 +283,7 @@ const StockChart = React.memo(({ stock, onExpand }) => {
         </div>
     );
 });
-
+StockChart.displayName = 'StockChart';
 
 // Define category section component
 const CategorySection = ({ title, stocks, expanded, toggleExpand, onExpandChart }) => {
@@ -634,7 +634,7 @@ const Index = () => {
         </DefaultDashboardLayout>
     );
 };
-
+Index.displayName = 'ClientHoldingsPercentagePage';
 export default Index;
 
 // Server-side function to handle authentication (optional)
