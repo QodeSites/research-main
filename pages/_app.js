@@ -5,7 +5,6 @@ import { NextSeo } from 'next-seo';
 import SSRProvider from 'react-bootstrap/SSRProvider';
 import { Analytics } from '@vercel/analytics/react';
 import '../components/components.css';
-import './index.css';
 import 'styles/theme.scss';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 // import default layouts
@@ -14,6 +13,7 @@ import App from 'next/app';
 import { parse } from 'cookie';
 import { useEffect } from 'react';
 import io from 'socket.io-client';
+import './index.css';
 
 function MyApp({ Component, pageProps, isLoggedIn }) {
   useEffect(() => {

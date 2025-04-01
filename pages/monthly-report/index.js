@@ -17,6 +17,8 @@ import {
 } from "react-bootstrap";
 import { Typeahead } from "react-bootstrap-typeahead";
 import formatDate from "utils/formatDate";
+import { parse } from 'cookie';
+
 
 const MonthlyReport = () => {
   const [indicesData, setIndicesData] = useState(null);
@@ -676,5 +678,24 @@ const MonthlyReport = () => {
     </div>
   );
 };
+
+export async function getServerSideProps(context) {
+    const { req } = context;
+    const cookies = req.headers.cookie || '';
+    const parsedCookies = parse(cookies);
+
+    if (!parsedCookies.auth) {
+        return {
+            redirect: {
+                destination: '/login',
+                permanent: false,
+            },
+        };
+    }
+
+    // If the auth cookie exists, render the page
+    return { props: {} };
+}
+
 
 export default MonthlyReport;

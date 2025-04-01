@@ -275,3 +275,15 @@
     font-size: 0.75rem;
     margin-left: 10px;
 }
+
+
+/* Force Bootstrap’s collapse logic to take precedence. */
+.accordion-collapse.collapse {
+    display: none !important;
+  }
+  .accordion-collapse.collapse.show {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  

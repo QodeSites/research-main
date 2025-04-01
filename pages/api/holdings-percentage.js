@@ -1,5 +1,17 @@
 import db from "lib/db"; // assuming this exports a configured pg or mysql client
 
+// Function to categorize stocks
+const categorizeStock = (stockName) => {
+  const name = stockName.toLowerCase();
+  if (name.includes('cash') || name.includes('initial margin')) {
+    return 'CASH';
+  } else if (name.includes('call') || name.includes('put')) {
+    return 'OPTIONS';
+  } else {
+    return 'STOCKS';
+  }
+};
+
 export default async function handler(req, res) {
   // Method validation
   if (req.method !== "GET") {
@@ -20,38 +32,38 @@ export default async function handler(req, res) {
     `;
 
     const result = await db.query(query);
-
-    // Group data by strategy and stock name
-    const grouped = result.rows.reduce((acc, row) => {
-      // Create strategy group if not exists
-      if (!acc[row.strategy]) {
-        acc[row.strategy] = {};
-      }
-
-      // Create stock entry within strategy if not exists
-      if (!acc[row.strategy][row.symbolname]) {
-        acc[row.strategy][row.symbolname] = {
+    
+    // More efficient grouping using Map
+    const strategyMap = new Map();
+    
+    for (const row of result.rows) {
+      const strategy = row.strategy || 'Unknown';
+      const symbolKey = `${strategy}-${row.symbolname}`;
+      
+      if (!strategyMap.has(symbolKey)) {
+        // Add category based on stock name
+        const category = categorizeStock(row.symbolname);
+        
+        strategyMap.set(symbolKey, {
           symbolname: row.symbolname,
           total: row.total,
-          strategy: row.strategy,
+          strategy: strategy,
+          category: category,
           clients: []
-        };
+        });
       }
-
-      // Add client data to the specific strategy and stock
-      acc[row.strategy][row.symbolname].clients.push({
+      
+      strategyMap.get(symbolKey).clients.push({
         clientcode: row.clientcode,
         percentassets: row.percentassets
       });
+    }
+    
+    // Convert Map to array for response
+    const response = Array.from(strategyMap.values());
 
-      return acc;
-    }, {});
-
-    // Flatten the grouped data
-    const response = Object.values(grouped).flatMap(strategyStocks => 
-      Object.values(strategyStocks)
-    );
-
+    // Add cache control headers to reduce frequent API calls
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     res.status(200).json(response);
   } catch (error) {
     console.error("API Error:", error);

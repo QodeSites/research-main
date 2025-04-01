@@ -273,12 +273,19 @@ const ReturnsComparisonPage = () => {
                             <div className="row g-2">
                                 {selectedColumns.map((period) => (
                                     <div key={period} className="col-4">
-                                        <div className="p-2 border rounded text-center">
+                                        <div
+                                            className="p-2 border rounded text-center"
+                                            style={
+                                                period === 'CDR_MDD'
+                                                    ? { backgroundColor: 'rgba(255, 0, 0, 0.1)' } // Transparent red background
+                                                    : {}
+                                            }
+                                        >
                                             <div className="small text-muted">{period}</div>
                                             <div
                                                 className={
                                                     period === 'CDR_MDD'
-                                                        ? 'text-danger' // Always red for CDR_MDD
+                                                        ? 'text-danger'
                                                         : item[period] !== '-' && parseFloat(item[period]) < 0
                                                             ? 'text-danger'
                                                             : ''
@@ -306,7 +313,7 @@ const ReturnsComparisonPage = () => {
 
         return (
             <div className="table-responsive">
-                <Table striped bordered hover className="elegant-table">
+                <Table bordered hover className="elegant-table">
                     <thead className="sticky-header">
                         <tr>
                             <th>S.No</th>
@@ -344,10 +351,15 @@ const ReturnsComparisonPage = () => {
                                         key={period}
                                         className={
                                             period === 'CDR_MDD'
-                                                ? 'text-danger' // Always red for CDR_MDD
+                                                ? 'text-danger'
                                                 : item[period] !== '-' && parseFloat(item[period]) < 0
                                                     ? 'text-danger'
                                                     : ''
+                                        }
+                                        style={
+                                            period === 'CDR_MDD'
+                                                ? { backgroundColor: 'rgba(255, 0, 0, 0.1)' } // Transparent red background
+                                                : {}
                                         }
                                     >
                                         {period === 'CDR_MDD' && item[period] !== '-' && parseFloat(item[period]) > 0

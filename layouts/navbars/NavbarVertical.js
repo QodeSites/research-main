@@ -52,38 +52,69 @@ const NavbarVertical = (props) => {
   }, [pathname]); // Trigger when route changes
 
   const CustomToggle = ({ children, eventKey, icon }) => {
-    const { activeEventKey } = useContext(AccordionContext);
-    const isCurrentEventKey = activeEventKey === eventKey;
-
-    const decoratedOnClick = useAccordionButton(eventKey, () => {
+    const isActive = activeMenus.includes(eventKey);
+  
+    const handleClick = () => {
       setActiveMenus((prev) =>
-        isCurrentEventKey
-          ? prev.filter((key) => key !== eventKey)
-          : [...prev, eventKey]
+        isActive ? prev.filter((key) => key !== eventKey) : [...prev, eventKey]
       );
-    });
-
+    };
+  
     return (
       <li className="nav-item mb-2">
         <Link
           href="#"
-          className={`nav-link ${activeMenus.includes(eventKey) ? "active" : ""}`}
+          className={`nav-link ${isActive ? "active" : ""}`}
           onClick={(e) => {
             e.preventDefault();
-            decoratedOnClick();
+            handleClick();
           }}
-          data-bs-toggle="collapse"
-          data-bs-target="#navDashboard"
-          aria-expanded={isCurrentEventKey}
-          aria-controls="navDashboard"
         >
-          <div className="d-flex w-full justify-between items-center">
-            <div className="d-flex items-center">
+          <div className="flex w-full justify-between items-center">
+            <div className="flex items-center">
               {icon && <span className="me-2">{icon}</span>}
               {children}
             </div>
           </div>
         </Link>
+        <ul className={`flex flex-col ms-3 ${isActive ? "block" : "hidden"}`}>
+          <li className="nav-item mb-3">
+            <Link
+              href="/strategy-returns"
+              className="nav-link flex items-center"
+              onClick={hideSidebar}
+            >
+              Short Term Performance
+            </Link>
+          </li>
+          <li className="nav-item mb-3">
+            <Link
+              href="/returns-comparison"
+              className="nav-link flex items-center"
+              onClick={hideSidebar}
+            >
+              Long Term Performance
+            </Link>
+          </li>
+          <li className="nav-item mb-3">
+            <Link
+              href="/strategy-drawdowns"
+              className="nav-link flex items-center"
+              onClick={hideSidebar}
+            >
+              Drawdown Comparison
+            </Link>
+          </li>
+          <li className="nav-item mb-3">
+            <Link
+              href="/monthly-report"
+              className="nav-link flex items-center"
+              onClick={hideSidebar}
+            >
+              Monthly Report
+            </Link>
+          </li>
+        </ul>
       </li>
     );
   };
