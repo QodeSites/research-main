@@ -899,27 +899,27 @@ const Index = () => {
           </div>
 
           {/* Active filters row */}
-        {(search || activeStrategy !== "All") && (
-            <div className="bg-gray-100 p-2 rounded text-sm text-gray-600 flex flex-wrap gap-2 items-center">
-                <span className="font-medium">Active:</span>
-                {activeStrategy !== "All" && (
-                    <span className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-                        Strategy: {activeStrategy}
-                    </span>
-                )}
-                {search && (
-                    <span className="px-2 py-0.5 bg-white border border-gray-300 rounded">
-                        Search: \"{search}\"
-                    </span>
-                )}
-                <button
-                    onClick={clearFilters}
-                    className="text-red-600 underline ml-2"
-                >
-                    Clear
-                </button>
-            </div>
-        )}
+          {(search || activeStrategy !== "All") && (
+  <div className="bg-gray-100 p-2 rounded text-sm text-gray-600 flex flex-wrap gap-2 items-center">
+    <span className="font-medium">Active:</span>
+    {activeStrategy !== "All" && (
+      <span className="px-2 py-0.5 bg-white border border-gray-300 rounded">
+        Strategy: {activeStrategy}
+      </span>
+    )}
+    {search && (
+      <span className="px-2 py-0.5 bg-white border border-gray-300 rounded">
+        Search: &quot;{search}&quot;
+      </span>
+    )}
+    <button
+      onClick={clearFilters}
+      className="text-red-600 underline ml-2"
+    >
+      Clear
+    </button>
+  </div>
+)}
 
           {/* View Mode Switch */}
           <div className="flex gap-2">
